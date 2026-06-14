@@ -5,14 +5,14 @@
 The MVP: a fully functional web app for manually recording and visualising Wi-Fi signal strength.
 
 - [x] Project structure and documentation
-- [ ] React + Vite frontend with dark-mode UI
-- [ ] Express + SQLite backend with REST API
-- [ ] Dashboard with summary statistics
-- [ ] Manual reading form (floor, room, coordinates, SSID, RSSI)
-- [ ] Readings table with all recorded data
-- [ ] 2D canvas heatmap with IDW interpolation
-- [ ] 3D visualiser with React Three Fiber
-- [ ] Sample data for immediate demonstration
+- [x] React + Vite frontend with dark-mode UI
+- [x] Express + SQLite backend with REST API
+- [x] Dashboard with summary statistics
+- [x] Manual reading form (floor, room, coordinates, SSID, RSSI)
+- [x] Readings table with all recorded data
+- [x] 2D canvas heatmap with IDW interpolation
+- [x] 3D visualiser with React Three Fiber
+- [x] Sample data for immediate demonstration
 
 ## Phase 2 — ESP32 Live Data Feeds
 
