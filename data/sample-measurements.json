@@ -50,6 +50,17 @@
       "notes": "Roughly 10 ft forward from router and 29 inches above floor. Left/right offset not measured yet, so x is temporarily set to 0."
     },
     {
+      "id": "anchor-real-macbook",
+      "floor_id": "floor-first",
+      "device_name": "MacBook",
+      "room_name": "Bedroom",
+      "x": -1.7272,
+      "y": -4.5212,
+      "z": 2.8448,
+      "device_type": "Laptop",
+      "notes": "Upstairs bedroom workstation"
+    },
+    {
       "id": "anchor-router",
       "floor_id": "floor-ground",
       "device_name": "[Demo Anchor] Central Router",
