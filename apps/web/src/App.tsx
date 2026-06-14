@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import AddReading from './pages/AddReading';
 import Heatmap from './pages/Heatmap';
+import Visualiser3D from './pages/Visualiser3D';
 import './App.css';
 
 function App() {
@@ -46,7 +47,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/add-reading" element={<AddReading />} />
             <Route path="/heatmap" element={<Heatmap />} />
-            <Route path="/3d" element={<Placeholder title="3D Visualiser" />} />
+            <Route path="/3d" element={<Visualiser3D />} />
             <Route path="/about" element={<Placeholder title="About" />} />
           </Routes>
         </main>
