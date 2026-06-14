@@ -3,7 +3,7 @@ export default function About() {
     <div>
       <div className="page-header">
         <h2>About WaveSight</h2>
-        <p>Wi-Fi signal strength mapper and 3D visualiser</p>
+        <p>Wi-Fi signal strength and wave field visualiser</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-xl)', maxWidth: '900px' }}>
@@ -14,10 +14,10 @@ export default function About() {
           </h3>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
             {[
-              'Records Wi-Fi signal strength (RSSI) at locations you specify',
+              'Records Wi-Fi signal strength (RSSI) at coordinates you specify',
               'Stores measurements locally in SQLite on your machine',
-              'Visualises coverage as 2D heatmaps with interpolation',
-              'Renders a 3D scene of your floor plan with signal markers',
+              'Visualises coverage as 2D signal fields with animation',
+              'Renders a 3D scene of your signal field with height-coded markers',
               'Designed for future ESP32 CSI data integration',
               'Runs entirely offline — no cloud, no external services',
             ].map((item, i) => (
@@ -62,7 +62,7 @@ export default function About() {
               { label: '3D', value: 'React Three Fiber + Three.js' },
               { label: 'Backend', value: 'Node.js + Express' },
               { label: 'Database', value: 'SQLite (better-sqlite3)' },
-              { label: 'Heatmap', value: 'HTML Canvas + IDW interpolation' },
+              { label: 'Signal Field', value: 'HTML Canvas + IDW interpolation' },
             ].map(({ label, value }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>

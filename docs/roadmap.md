@@ -1,50 +1,43 @@
 # Roadmap
 
-## Phase 1 — Manual Signal Mapping (Current)
+## Stage 1 — Active Devices & AP Discovery (Active)
 
-The MVP: a fully functional web app for manually recording and visualising Wi-Fi signal strength.
+Uses metadata from standard routers and operating systems to list active networking interfaces and APs.
 
-- [x] Project structure and documentation
-- [x] React + Vite frontend with dark-mode UI
+- [x] Basic project configuration and monorepo structure
+- [x] React + Vite frontend with premium dark-mode UI
 - [x] Express + SQLite backend with REST API
-- [x] Dashboard with summary statistics
-- [x] Manual reading form (floor, room, coordinates, SSID, RSSI)
-- [x] Readings table with all recorded data
-- [x] 2D canvas heatmap with IDW interpolation
-- [x] 3D visualiser with React Three Fiber
-- [x] Sample data for immediate demonstration
+- [x] Discovered active devices and routers table
+- [x] RSSI values, MAC addresses, IP addresses, connection types, and last seen records
+- [x] Optional location assignments for static network nodes
 
-## Phase 2 — ESP32 Live Data Feeds
+## Stage 2 — Manual Signal Scanning (Active)
 
-Connect ESP32 microcontrollers to stream Wi-Fi CSI and RSSI data in real time.
+Site survey mapping using abstract coordinate scanning. Does not assume physical geometry unless supplied by the user.
 
-- [ ] ESP32-S3 firmware for CSI capture (Arduino/ESP-IDF)
-- [ ] Device registration and authentication API
-- [ ] HTTP POST endpoint for device readings
-- [ ] WebSocket or SSE for live frontend updates
-- [ ] Time-series storage for high-frequency data
-- [ ] Live heatmap that updates as readings arrive
-- [ ] Device management page (status, battery, last seen)
-- [ ] Multi-device support (mesh of ESP32 boards)
+- [x] Form to manually enter coordinates $(x, y, z)$ and RSSI values
+- [x] Click/double-click on the map canvas to immediately open the scan point dialog at those coordinates
+- [x] 2D Signal Field map with IDW interpolation and real-time animated wave propagation ripples
+- [x] Optional custom floorplan image uploader (local persistence)
+- [x] Optional custom wall drawing utility (local persistence)
+- [x] 3D Signal Field map (React Three Fiber) rendering signal intensity as marker heights, drawing flat wave ripples, and extruding custom user-drawn walls
+- [x] Clear "demo data" labels on pre-seeded records
 
-## Phase 3 — Analytics & Experimental Sensing
+## Stage 3 — ESP32 CSI & Wave Interference Field Mapping (Planned)
 
-Advanced features for signal analysis and experimental indoor sensing.
+High-resolution subcarrier mapping for advanced physical layer diagnostics.
 
-- [ ] Signal strength over time charts
-- [ ] Coverage gap detection and alerts
-- [ ] CSI amplitude/phase visualisation
-- [ ] Experimental presence detection (room occupied yes/no)
-- [ ] Signal propagation modelling
-- [ ] Export data as CSV/JSON
-- [ ] Shareable reports
+- [ ] ESP32-S3 Arduino/ESP-IDF firmware for capturing Channel State Information (CSI) subcarriers
+- [ ] Time-series endpoints for streaming high-frequency amplitude and phase shift metrics
+- [ ] Live WebSocket telemetry updates
+- [ ] 2D/3D wave interference rendering mapping phase cancellation and reinforcement contours
+- [ ] Machine learning models for spatial fingerprinting and privacy-safe presence detection
 
 ## Non-Goals
 
 These features are explicitly **out of scope**:
 
-- ❌ Identifying specific people or devices without consent
-- ❌ Through-wall imaging or surveillance
-- ❌ Intercepting or decoding network traffic
-- ❌ Any feature that could be used to spy on others
-- ❌ Cloud-hosted data storage (local-only by design)
+- ❌ Identifying or tracking specific individuals without consent
+- ❌ Through-wall imaging, tracking, or surveillance
+- ❌ Intercepting or decoding payload packets or network traffic
+- ❌ Cloud-hosted telemetry storage (WaveSight is local-only by design)

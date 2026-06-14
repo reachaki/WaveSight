@@ -6,9 +6,9 @@ WaveSight is a personal tool for mapping Wi-Fi signal strength inside your own h
 
 ## What This Tool Does
 
-- Records Wi-Fi signal strength (RSSI in dBm) at locations you specify
+- Records Wi-Fi signal strength (RSSI in dBm) at coordinates you specify
 - Stores measurements in a local SQLite database on your computer
-- Visualises signal strength as 2D heatmaps and 3D scenes
+- Visualises signal strength as 2D signal fields and 3D scenes
 - Runs entirely on your local machine — no cloud, no external services
 
 ## What This Tool Does NOT Do
@@ -26,7 +26,7 @@ WaveSight is a personal tool for mapping Wi-Fi signal strength inside your own h
 |--------|--------|
 | Storage | Local SQLite database (`wavesight.db`) |
 | Location | Your machine only, never uploaded |
-| Contents | Floor plans, room names, coordinates, SSID names, signal strength values |
+| Contents | Floor details, user-created rooms, coordinates, SSID names, signal strength values |
 | Sensitive data | No passwords, no traffic captures, no personal identifiers |
 | Deletion | Delete `wavesight.db` to remove all data |
 | Sharing | Data is never shared unless you manually export and send it |

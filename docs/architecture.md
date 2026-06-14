@@ -21,7 +21,7 @@ WaveSight is a monorepo containing a React frontend and a Node.js/Express backen
                                        │   wavesight.db   │
                                        └──────────────────┘
 
-                    Future:
+                    Future (Stage 3):
                     ┌──────────────────┐
                     │  ESP32 Devices   │ ──── HTTP POST ────►  Backend
                     │  (CSI / RSSI)    │
@@ -36,7 +36,7 @@ WaveSight is a monorepo containing a React frontend and a Node.js/Express backen
 - **Build tool**: Vite
 - **Routing**: React Router v7
 - **3D rendering**: React Three Fiber + @react-three/drei
-- **Heatmap**: Custom HTML Canvas renderer with inverse-distance weighting (IDW)
+- **Signal Field**: Custom HTML Canvas renderer with inverse-distance weighting (IDW) interpolation, real-time wave-ripple propagation, manually drawn walls, and imported floorplan image underlays.
 - **Styling**: Vanilla CSS with CSS custom properties for theming
 
 ### Backend (`server/`)
@@ -52,26 +52,26 @@ WaveSight is a monorepo containing a React frontend and a Node.js/Express backen
 Four tables form the core data model:
 
 - **floors** — building levels with name, dimensions
-- **rooms** — rectangular areas within a floor
+- **rooms** — rectangular areas within a floor (optional, user-created only)
 - **measurement_points** — x/y/z coordinates where readings are taken
 - **wifi_readings** — SSID, RSSI, device info linked to a measurement point
 
 ### Data Flow
 
-1. User creates a floor and rooms via the frontend
-2. User adds measurement points with coordinates
-3. User records Wi-Fi readings at each point
-4. Frontend fetches readings from the API
-5. Heatmap page interpolates values across the floor grid
-6. 3D visualiser renders the floor, rooms, and signal markers
+1. User creates a floor field via the frontend.
+2. User records Wi-Fi scan readings at specific coordinates (either by manual coordinate entry, or by double-clicking coordinates directly on the 2D map).
+3. Optionally, the user uploads a layout drawing of their space or sketches wall lines (persisted locally).
+4. Frontend fetches readings from the API.
+5. 2D page interpolates values across the grid using IDW and overlays animated wave ripples from signal sources.
+6. 3D page renders coordinates as floating spheres, extrudes user-drawn wall paths, and projects the layout image onto the floor plane.
 
-### Future: ESP32 Integration
+### ESP32 CSI Telemetry (Stage 3)
 
-ESP32 devices will POST readings directly to the backend API using the same `/api/readings` endpoint. The backend will need:
+ESP32 devices will POST subcarrier telemetry directly to the backend. This data flow will utilize:
 
 - Authentication tokens for device identification
-- Rate limiting for high-frequency CSI data
-- Time-series storage optimisation
+- Rate limiting for high-frequency CSI subcarriers
+- Time-series storage optimization
 - WebSocket or SSE for live updates to the frontend
 
 ## Design Decisions

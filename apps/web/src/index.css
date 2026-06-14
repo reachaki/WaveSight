@@ -540,3 +540,8 @@ tr:hover td {
     grid-template-columns: 1fr;
   }
 }
+
+@keyframes pulse {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.01); }
+}

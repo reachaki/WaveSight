@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const API = 'http://localhost:3001/api';
 
 interface Floor {
   id: string;
   name: string;
-  rooms: Array<{ id: string; name: string }>;
 }
 
 interface Reading {
@@ -39,13 +39,19 @@ export default function AddReading() {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Query params for direct click mapping
+  const query = new URLSearchParams(useLocation().search);
+  const qX = query.get('x') || '';
+  const qY = query.get('y') || '';
+  const qFloorId = query.get('floorId') || '';
+
   // Form state
-  const [floorId, setFloorId] = useState('');
+  const [floorId, setFloorId] = useState(qFloorId);
   const [newFloorName, setNewFloorName] = useState('');
-  const [roomId, setRoomId] = useState('');
-  const [newRoomName, setNewRoomName] = useState('');
-  const [x, setX] = useState('');
-  const [y, setY] = useState('');
+  const [roomName, setRoomName] = useState('');
+  const [label, setLabel] = useState('');
+  const [x, setX] = useState(qX);
+  const [y, setY] = useState(qY);
   const [z, setZ] = useState('');
   const [ssid, setSsid] = useState('');
   const [rssi, setRssi] = useState(-50);
@@ -57,12 +63,16 @@ export default function AddReading() {
 
   // Fetch floors and readings
   useEffect(() => {
-    fetch(`${API}/floors`).then(r => r.json()).then(setFloors).catch(() => {});
+    fetch(`${API}/floors`).then(r => r.json()).then(data => {
+      setFloors(data);
+      if (qFloorId) {
+        setFloorId(qFloorId);
+      } else if (data.length > 0) {
+        setFloorId(data[0].id);
+      }
+    }).catch(() => {});
     fetch(`${API}/readings`).then(r => r.json()).then(setReadings).catch(() => {});
-  }, []);
-
-  const selectedFloor = floors.find(f => f.id === floorId);
-  const rooms = selectedFloor?.rooms ?? [];
+  }, [qFloorId]);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -77,6 +87,7 @@ export default function AddReading() {
       x: parseFloat(x),
       y: parseFloat(y),
       z: z ? parseFloat(z) : 0,
+      label: label || undefined,
       ssid,
       rssi,
       frequency_mhz: frequencyMhz ? parseInt(frequencyMhz) : undefined,
@@ -92,11 +103,9 @@ export default function AddReading() {
       body.floor_id = floorId;
     }
 
-    // Room
-    if (roomId === '__new__') {
-      body.room_name = newRoomName;
-    } else if (roomId) {
-      body.room_id = roomId;
+    // Optional Room / Zone Name
+    if (roomName) {
+      body.room_name = roomName;
     }
 
     try {
@@ -113,16 +122,18 @@ export default function AddReading() {
 
       showToast('success', 'Reading saved successfully!');
 
-      // Reset form (keep floor/room selection)
+      // Reset form (keep floor selection)
       setX('');
       setY('');
       setZ('');
+      setLabel('');
       setSsid('');
       setRssi(-50);
       setFrequencyMhz('');
       setChannelNum('');
       setDeviceName('');
       setNotes('');
+      setRoomName('');
 
       // Refresh data
       const [newFloors, newReadings] = await Promise.all([
@@ -142,7 +153,7 @@ export default function AddReading() {
     <div>
       <div className="page-header">
         <h2>Add Reading</h2>
-        <p>Record a Wi-Fi signal strength measurement</p>
+        <p>Record a live Wi-Fi signal strength measurement</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 'var(--space-xl)', alignItems: 'start' }}>
@@ -155,11 +166,11 @@ export default function AddReading() {
 
             {/* Floor */}
             <div className="form-group">
-              <label>Floor</label>
+              <label>Floor Field</label>
               <select
                 className="form-select"
                 value={floorId}
-                onChange={e => { setFloorId(e.target.value); setRoomId(''); }}
+                onChange={e => setFloorId(e.target.value)}
                 required
               >
                 <option value="">Select a floor...</option>
@@ -179,36 +190,6 @@ export default function AddReading() {
                   value={newFloorName}
                   onChange={e => setNewFloorName(e.target.value)}
                   placeholder="e.g. Ground Floor"
-                  required
-                />
-              </div>
-            )}
-
-            {/* Room */}
-            <div className="form-group">
-              <label>Room</label>
-              <select
-                className="form-select"
-                value={roomId}
-                onChange={e => setRoomId(e.target.value)}
-              >
-                <option value="">No room (optional)</option>
-                {rooms.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-                <option value="__new__">+ Create new room</option>
-              </select>
-            </div>
-
-            {roomId === '__new__' && (
-              <div className="form-group">
-                <label>New Room Name</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  value={newRoomName}
-                  onChange={e => setNewRoomName(e.target.value)}
-                  placeholder="e.g. Living Room"
                   required
                 />
               </div>
@@ -249,6 +230,30 @@ export default function AddReading() {
                   value={z}
                   onChange={e => setZ(e.target.value)}
                   placeholder="0.0"
+                />
+              </div>
+            </div>
+
+            {/* Room / Location label */}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Scan Point Label</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={label}
+                  onChange={e => setLabel(e.target.value)}
+                  placeholder="e.g. Near window, Router AP"
+                />
+              </div>
+              <div className="form-group">
+                <label>User-Created Room (Optional)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={roomName}
+                  onChange={e => setRoomName(e.target.value)}
+                  placeholder="e.g. Office, Living Room"
                 />
               </div>
             </div>
@@ -325,7 +330,7 @@ export default function AddReading() {
                 className="form-textarea"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Any observations about this location..."
+                placeholder="Any observations about this scan location..."
                 rows={3}
               />
             </div>
@@ -344,7 +349,7 @@ export default function AddReading() {
         {/* Readings Table */}
         <div>
           <h3 style={{ marginBottom: 'var(--space-md)', fontSize: '1.1rem', fontWeight: 600 }}>
-            📋 All Readings ({readings.length})
+            📋 All Scanned Points ({readings.length})
           </h3>
 
           {readings.length === 0 ? (
@@ -358,10 +363,10 @@ export default function AddReading() {
                 <thead>
                   <tr>
                     <th>Floor</th>
-                    <th>Room</th>
+                    <th>Room / Label</th>
                     <th>SSID</th>
                     <th>RSSI</th>
-                    <th>Position</th>
+                    <th>Coordinates (X, Y)</th>
                     <th>Device</th>
                     <th>Time</th>
                   </tr>
@@ -370,7 +375,12 @@ export default function AddReading() {
                   {readings.map(r => (
                     <tr key={r.reading_id}>
                       <td>{r.floor_name}</td>
-                      <td>{r.room_name || '—'}</td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{r.label || '—'}</div>
+                        {r.room_name && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Room: {r.room_name}</div>
+                        )}
+                      </td>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{r.ssid}</td>
                       <td>
                         <span className={`rssi-badge ${getRssiClass(r.rssi)}`}>
@@ -378,7 +388,7 @@ export default function AddReading() {
                         </span>
                       </td>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-                        ({r.x}, {r.y}{r.z ? `, ${r.z}` : ''})
+                        ({r.x.toFixed(1)}m, {r.y.toFixed(1)}m{r.z ? `, ${r.z.toFixed(1)}m` : ''})
                       </td>
                       <td>{r.device_name || '—'}</td>
                       <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

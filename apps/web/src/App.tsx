@@ -26,11 +26,11 @@ function App() {
             </NavLink>
             <NavLink to="/heatmap">
               <span className="nav-icon">🗺️</span>
-              2D Heatmap
+              2D Signal Field
             </NavLink>
             <NavLink to="/3d">
-              <span className="nav-icon">🏠</span>
-              3D Visualiser
+              <span className="nav-icon">📡</span>
+              3D Signal Field
             </NavLink>
             <NavLink to="/about">
               <span className="nav-icon">ℹ️</span>

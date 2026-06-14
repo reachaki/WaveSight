@@ -23,7 +23,7 @@ interface SampleRoom {
 
 interface SampleMeasurement {
   floor_id: string;
-  room_id: string;
+  room_id?: string | null;
   x: number;
   y: number;
   z: number;
@@ -38,7 +38,7 @@ interface SampleMeasurement {
 
 interface SampleData {
   floors: SampleFloor[];
-  rooms: SampleRoom[];
+  rooms?: SampleRoom[];
   measurements: SampleMeasurement[];
 }
 
@@ -64,9 +64,6 @@ export function seedIfEmpty(): void {
   const insertFloor = db.prepare(`
     INSERT INTO floors (id, name, level, width, height) VALUES (?, ?, ?, ?, ?)
   `);
-  const insertRoom = db.prepare(`
-    INSERT INTO rooms (id, floor_id, name, x, y, width, height) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
   const insertPoint = db.prepare(`
     INSERT INTO measurement_points (id, floor_id, room_id, x, y, z, label) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
@@ -81,21 +78,16 @@ export function seedIfEmpty(): void {
       insertFloor.run(floor.id, floor.name, floor.level, floor.width, floor.height);
     }
 
-    // Insert rooms
-    for (const room of data.rooms) {
-      insertRoom.run(room.id, room.floor_id, room.name, room.x, room.y, room.width, room.height);
-    }
-
     // Insert measurements
     for (const m of data.measurements) {
       const pointId = uuidv4();
-      insertPoint.run(pointId, m.floor_id, m.room_id, m.x, m.y, m.z, m.label);
+      insertPoint.run(pointId, m.floor_id, null, m.x, m.y, m.z, m.label);
       insertReading.run(uuidv4(), pointId, m.ssid, m.rssi, m.frequency_mhz, m.channel, m.device_name, m.notes);
     }
   });
 
   transaction();
-  console.log(`🌱 Seeded database with ${data.floors.length} floors, ${data.rooms.length} rooms, ${data.measurements.length} readings`);
+  console.log(`🌱 Seeded database with ${data.floors.length} floors, ${data.measurements.length} readings`);
 }
 
 // Allow running directly: npx tsx src/seed.ts

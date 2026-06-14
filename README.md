@@ -1,31 +1,59 @@
 # WaveSight
 
-**Visualising wireless environments in 2D and 3D.**
+**Visualising wireless wave fields in 2D and 3D.**
 
-WaveSight is an experimental platform for collecting Wi-Fi signal-strength measurements inside your own home or office, then rendering them as interactive 2D heatmaps and 3D visualisations. It is designed for personal use on your own network and premises.
+WaveSight is an experimental full-stack platform designed to map real-world Wi-Fi signal propagation. Unlike traditional mapping tools that rely on hard-coded floorplans or preset layouts, WaveSight is built around real signal collection, manual coordinates, and abstract wave-field visualisation.
 
-> **Safety notice:** This tool maps Wi-Fi signal coverage in spaces you own or have permission to survey. It does **not** see through walls, identify people, or perform any form of surveillance. See [Privacy & Safety](docs/privacy-and-safety.md) for full details.
+> **Safety Notice:** This tool maps Wi-Fi signal coverage in spaces you own or have permission to survey. It does **not** see through walls, identify people, or perform any form of surveillance. See [Privacy & Safety](docs/privacy-and-safety.md) for full details.
+
+---
+
+## 🚀 Product Stages
+
+WaveSight is designed to work in three progressive stages of wireless signal collection:
+
+### 📶 Stage 1: Active Devices / AP Discovery (Currently Active)
+Use existing Wi-Fi/router/device data where available:
+- Lists discovered access points and connected clients.
+- Captures SSID, RSSI (signal strength), MAC/vendor, IP address, connection type (Wi-Fi 5 / Wi-Fi 6), last seen time, and manual location assignments.
+- *Note:* Standard commercial routers usually only provide limited RSSI and client device metadata.
+
+### 📐 Stage 2: Manual Signal Scanning (Currently Active)
+Perform physical site surveys:
+- Walk around your environment with a phone or laptop.
+- Record signal RSSI at specific coordinates $(x, y, z)$.
+- Build a real-time signal field heatmap showing physical propagation.
+- **No fake walls or rooms:** The grid is abstract unless you choose to upload a floorplan image underlay or draw custom walls directly onto the canvas (no hard-coded geometry).
+
+### ⚡ Stage 3: ESP32 Channel State Information (CSI) (Future)
+High-resolution physical layer telemetry:
+- Multiple receivers collect CSI amplitude and phase across subcarrier frequencies.
+- Backend stores high-frequency time-series signal data.
+- Visualiser shows physical wave interference fields rather than simple static gradients.
+- Future ML models can infer rough spatial fingerprints and presence without cameras.
+- *Note:* This stage requires specialised hardware, such as ESP32-S3 development boards running custom firmware.
 
 ---
 
 ## Features
 
-- 📐 **Floor & room layout** — define floors, rooms, and dimensions
-- 📡 **Manual signal readings** — record SSID, RSSI (dBm), device, location
-- 🗺️ **2D heatmap** — canvas-based signal-strength visualisation with interpolation
-- 🏠 **3D visualiser** — interactive Three.js scene with colour-coded signal markers
-- 📊 **Dashboard** — overview stats: total readings, strongest/weakest rooms
-- 🔌 **ESP32 ready** — designed for future CSI/RSSI live-feed integration
+- 🌐 **2D Signal Field** — HTML Canvas-based abstract field visualiser. Supports real-time animated wave ripples, custom wall drawing, and click-to-add scan point shortcuts.
+- 📡 **3D Signal Field** — Interactive Three.js (React Three Fiber) scene mapping signal strength to marker height, extruding custom walls in 3D, and animating wave propagation on the ground plane.
+- 📁 **Floorplan Underlay** — Option to import a PNG/JPG floorplan image to local storage to overlay mapping on your actual space.
+- 📊 **Signal Field Dashboard** — Shows total readings, peak intensity coordinates, floor noise spots, and lists discovered device telemetry.
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19 · Vite · TypeScript |
-| 3D | React Three Fiber · Three.js |
-| Backend | Node.js · Express · TypeScript |
-| Database | SQLite (better-sqlite3) |
-| Heatmap | HTML Canvas · IDW interpolation |
+| Frontend | React 19 · Vite · TypeScript · React Router |
+| 3D | React Three Fiber · Three.js · Drei |
+| Backend | Node.js · Express · TypeScript · SQLite |
+| Heatmap | HTML Canvas · IDW interpolation · Animated wave rings |
+
+---
 
 ## Quick Start
 
@@ -49,7 +77,7 @@ npm install
 npm run dev
 ```
 
-The API runs at `http://localhost:3001`. On first start it creates `wavesight.db` and seeds it with sample data from `data/sample-measurements.json`.
+The API runs at `http://localhost:3001`. On first start, it seeds `wavesight.db` with sample data from `data/sample-measurements.json`. All sample data is clearly labeled as `[Demo Data]`.
 
 ### 3. Start the frontend
 
@@ -61,12 +89,14 @@ npm run dev
 
 Open `http://localhost:5173` in your browser.
 
+---
+
 ## Project Structure
 
 ```
 WaveSight/
 ├── apps/
-│   └── web/              # React + Vite frontend
+│   └── web/              # React + Vite frontend (dashboard, 2D/3D signal fields)
 ├── server/               # Express + SQLite backend
 ├── data/
 │   └── sample-measurements.json
@@ -81,23 +111,7 @@ WaveSight/
 └── README.md
 ```
 
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/floors` | List all floors with rooms |
-| POST | `/api/floors` | Create a floor |
-| GET | `/api/readings` | List all readings (with filters) |
-| POST | `/api/readings` | Add a new reading |
-
-## Roadmap
-
-See [docs/roadmap.md](docs/roadmap.md) for the full plan.
-
-- **Phase 1** ✅ Manual readings, heatmap, 3D visualiser
-- **Phase 2** 🔜 ESP32 CSI live data feeds
-- **Phase 3** 📋 Presence sensing, analytics, time-series
+---
 
 ## Safety & Privacy
 
