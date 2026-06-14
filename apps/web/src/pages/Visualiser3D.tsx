@@ -240,7 +240,7 @@ function AnchorNode3D({ anchor }: { anchor: Anchor }) {
         outlineWidth={0.018}
         outlineColor="#070a13"
       >
-        {`⚓ ${anchor.device_name}\n(${anchor.room_name})`}
+        {`⚓ ${anchor.device_name.replace('[Demo Anchor] ', '')} [${anchor.device_name.includes('[Demo') ? 'Demo' : 'Manual'}]\n(${anchor.room_name})`}
       </Text>
     </group>
   );

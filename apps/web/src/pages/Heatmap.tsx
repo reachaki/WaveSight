@@ -692,11 +692,23 @@ export default function Heatmap() {
               minWidth: '220px',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
             }}>
-              <div style={{ fontWeight: 600, color: '#c084fc', marginBottom: '4px' }}>
-                ⚓ Location Anchor Beacon
+              <div style={{ fontWeight: 600, color: '#c084fc', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>⚓</span>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  padding: '1px 4px',
+                  borderRadius: '4px',
+                  background: hoveredAnchor.device_name.includes('[Demo') ? 'rgba(234, 179, 8, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                  color: hoveredAnchor.device_name.includes('[Demo') ? '#eab308' : '#38bdf8',
+                  border: `1px solid ${hoveredAnchor.device_name.includes('[Demo') ? 'rgba(234, 179, 8, 0.25)' : 'rgba(56, 189, 248, 0.25)'}`
+                }}>
+                  {hoveredAnchor.device_name.includes('[Demo') ? 'Demo' : 'Manual'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Beacon</span>
               </div>
               <div style={{ fontWeight: 600, marginBottom: '2px' }}>
-                {hoveredAnchor.device_name}
+                {hoveredAnchor.device_name.replace('[Demo Anchor] ', '')}
               </div>
               <div style={{ color: 'var(--text-secondary)' }}>
                 Zone: <span style={{ color: '#c084fc', fontWeight: 500 }}>{hoveredAnchor.room_name}</span>
@@ -705,7 +717,7 @@ export default function Heatmap() {
                 Device Type: <span style={{ color: 'var(--text-primary)' }}>{hoveredAnchor.device_type}</span>
               </div>
               <div style={{ color: 'var(--text-secondary)' }}>
-                Coordinates: ({hoveredAnchor.x.toFixed(1)}m, {hoveredAnchor.y.toFixed(1)}m)
+                Coordinates: ({hoveredAnchor.x.toFixed(2)}m, {hoveredAnchor.y.toFixed(2)}m{hoveredAnchor.z !== null && hoveredAnchor.z !== undefined ? `, ${hoveredAnchor.z.toFixed(2)}m` : ''})
               </div>
               {hoveredAnchor.notes && (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', fontStyle: 'italic' }}>

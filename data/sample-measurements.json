@@ -39,6 +39,17 @@
       "notes": "Roughly 9 ft left of router and 1 ft above floor"
     },
     {
+      "id": "anchor-real-ipad",
+      "floor_id": "floor-ground",
+      "device_name": "iPad",
+      "room_name": "Kitchen",
+      "x": 0.0,
+      "y": 3.05,
+      "z": 0.74,
+      "device_type": "Tablet",
+      "notes": "Roughly 10 ft forward from router and 29 inches above floor. Left/right offset not measured yet, so x is temporarily set to 0."
+    },
+    {
       "id": "anchor-router",
       "floor_id": "floor-ground",
       "device_name": "[Demo Anchor] Central Router",
