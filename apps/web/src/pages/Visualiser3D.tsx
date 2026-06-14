@@ -247,52 +247,104 @@ function AnchorNode3D({ anchor }: { anchor: Anchor }) {
 }
 
 /** Floor plane with optional background floorplan texture */
-function FloorPlane({ width, height, texture }: { width: number; height: number; texture: THREE.Texture | null }) {
+function FloorPlane({ 
+  width, 
+  height, 
+  texture,
+  cx,
+  cz,
+  renderW,
+  renderH
+}: { 
+  width: number; 
+  height: number; 
+  texture: THREE.Texture | null;
+  cx: number;
+  cz: number;
+  renderW: number;
+  renderH: number;
+}) {
   return (
-    <mesh position={[width / 2, 0, height / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[width, height]} />
-      {texture ? (
+    <group>
+      {/* Abstract dark ground plane covering the entire active boundary area */}
+      <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[renderW + 8, renderH + 8]} />
         <meshStandardMaterial
-          map={texture}
-          transparent
-          opacity={0.65}
-          side={THREE.DoubleSide}
+          color="#0b0f19"
+          roughness={0.8}
+          metalness={0.2}
         />
-      ) : (
-        <meshStandardMaterial
-          color="#0f172a"
-          transparent
-          opacity={0.85}
-          side={THREE.DoubleSide}
-        />
-      )}
-    </mesh>
+      </mesh>
+
+      {/* The actual floor plan texture or floor boundary limits */}
+      <mesh position={[width / 2, 0, height / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[width, height]} />
+        {texture ? (
+          <meshStandardMaterial
+            map={texture}
+            transparent
+            opacity={0.65}
+            side={THREE.DoubleSide}
+          />
+        ) : (
+          <meshStandardMaterial
+            color="#0f172a"
+            transparent
+            opacity={0.85}
+            side={THREE.DoubleSide}
+          />
+        )}
+      </mesh>
+    </group>
   );
 }
 
 /** The full 3D scene */
-function Scene({ floor, readings, anchors, walls, texture, showAnchors }: { 
+function Scene({ 
+  floor, 
+  readings, 
+  anchors, 
+  walls, 
+  texture, 
+  showAnchors,
+  cx,
+  cz,
+  renderW,
+  renderH
+}: { 
   floor: Floor; 
   readings: Reading[]; 
   anchors: Anchor[];
   walls: Wall[];
   texture: THREE.Texture | null;
   showAnchors: boolean;
+  cx: number;
+  cz: number;
+  renderW: number;
+  renderH: number;
 }) {
   return (
     <>
       {/* Lighting */}
       <ambientLight intensity={0.45} />
-      <directionalLight position={[10, 18, 10]} intensity={0.65} castShadow />
-      <pointLight position={[floor.width / 2, 6, floor.height / 2]} intensity={0.4} color="#38bdf8" />
+      <directionalLight position={[cx, 18, cz]} intensity={0.65} castShadow />
+      <pointLight position={[cx, 6, cz]} intensity={0.4} color="#38bdf8" />
 
       {/* Floor */}
-      <FloorPlane width={floor.width} height={floor.height} texture={texture} />
+      <FloorPlane 
+        width={floor.width} 
+        height={floor.height} 
+        texture={texture} 
+        cx={cx}
+        cz={cz}
+        renderW={renderW}
+        renderH={renderH}
+      />
 
       {/* Grid */}
       <Grid
-        position={[floor.width / 2, 0.005, floor.height / 2]}
-        args={[floor.width, floor.height]}
+        position={[cx, 0.005, cz]}
+        args={[renderW, renderH]}
         cellSize={1}
         cellThickness={0.5}
         cellColor="#1e293b"
@@ -338,7 +390,7 @@ function Scene({ floor, readings, anchors, walls, texture, showAnchors }: {
       {/* Camera controls */}
       <OrbitControls
         makeDefault
-        target={[floor.width / 2, 1.2, floor.height / 2]}
+        target={[cx, 1.2, cz]}
         maxPolarAngle={Math.PI / 2.05}
         minDistance={3}
         maxDistance={35}
@@ -406,6 +458,38 @@ export default function Visualiser3D() {
   const floorReadings = readings.filter(r => r.floor_id === selectedFloorId);
   const floorAnchors = anchors.filter(a => a.floor_id === selectedFloorId);
 
+  // Dynamic bounding box boundaries calculation
+  const floorW = selectedFloor?.width ?? 10;
+  const floorH = selectedFloor?.height ?? 10;
+
+  let minX = 0;
+  let maxX = floorW;
+  let minY = 0;
+  let maxY = floorH;
+
+  for (const p of [...floorReadings, ...floorAnchors]) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  for (const wall of walls) {
+    if (wall.x1 < minX) minX = wall.x1;
+    if (wall.x2 < minX) minX = wall.x2;
+    if (wall.x1 > maxX) maxX = wall.x1;
+    if (wall.x2 > maxX) maxX = wall.x2;
+    if (wall.y1 < minY) minY = wall.y1;
+    if (wall.y2 < minY) minY = wall.y2;
+    if (wall.y1 > maxY) maxY = wall.y1;
+    if (wall.y2 > maxY) maxY = wall.y2;
+  }
+
+  const renderW = maxX - minX;
+  const renderH = maxY - minY;
+  const cx = (minX + maxX) / 2;
+  const cz = (minY + maxY) / 2;
+
   return (
     <div>
       <div className="page-header">
@@ -458,7 +542,7 @@ export default function Visualiser3D() {
           <>
             <Canvas
               camera={{
-                position: [selectedFloor.width * 0.9, 10, selectedFloor.height * 1.3],
+                position: [cx + renderW * 0.5, 10, cz + renderH * 0.8],
                 fov: 48,
                 near: 0.1,
                 far: 100,
@@ -472,6 +556,10 @@ export default function Visualiser3D() {
                 walls={walls}
                 texture={floorplanTexture}
                 showAnchors={showAnchors}
+                cx={cx}
+                cz={cz}
+                renderW={renderW}
+                renderH={renderH}
               />
             </Canvas>
 

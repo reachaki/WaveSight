@@ -17,6 +17,28 @@
   ],
   "anchors": [
     {
+      "id": "anchor-real-router",
+      "floor_id": "floor-ground",
+      "device_name": "Living Room Router",
+      "room_name": "Living Room",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "device_type": "Router",
+      "notes": "Real-world origin AP on floor next to TV"
+    },
+    {
+      "id": "anchor-real-phone",
+      "floor_id": "floor-ground",
+      "device_name": "Sofa Phone",
+      "room_name": "Living Room / Sofa",
+      "x": -2.74,
+      "y": 0.0,
+      "z": 0.30,
+      "device_type": "Smartphone",
+      "notes": "Roughly 9 ft left of router and 1 ft above floor"
+    },
+    {
       "id": "anchor-router",
       "floor_id": "floor-ground",
       "device_name": "[Demo Anchor] Central Router",

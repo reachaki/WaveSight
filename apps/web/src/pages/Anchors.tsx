@@ -210,42 +210,51 @@ export default function Anchors() {
             </div>
 
             {/* Coordinates */}
-            <div className="form-row-3">
-              <div className="form-group">
-                <label>X (metres)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  value={x}
-                  onChange={e => setX(e.target.value)}
-                  placeholder="0.0"
-                  required
-                />
+            <div style={{ marginBottom: 'var(--space-md)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Coordinates (metres)</label>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Relative to chosen origin (0,0,0)</span>
               </div>
-              <div className="form-group">
-                <label>Y (metres)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  value={y}
-                  onChange={e => setY(e.target.value)}
-                  placeholder="0.0"
-                  required
-                />
+              <div className="form-row-3">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>X (Left/Right)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    value={x}
+                    onChange={e => setX(e.target.value)}
+                    placeholder="e.g. -2.74"
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Y (Forward/Back)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    value={y}
+                    onChange={e => setY(e.target.value)}
+                    placeholder="e.g. 0.0"
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Z (Height)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    value={z}
+                    onChange={e => setZ(e.target.value)}
+                    placeholder="e.g. 0.30"
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Z (optional)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  value={z}
-                  onChange={e => setZ(e.target.value)}
-                  placeholder="0.0"
-                />
-              </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                💡 Coordinates are relative to your origin device (e.g. Router at 0,0,0). Left of the router represents a <strong>negative X</strong>. If forward/back is not yet measured, enter <strong>0 for Y</strong> and update it later.
+              </p>
             </div>
 
             {/* Device Type */}
@@ -314,27 +323,43 @@ export default function Anchors() {
                   </tr>
                 </thead>
                 <tbody>
-                  {anchors.map(a => (
-                    <tr key={a.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <td>{a.floor_name || '—'}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{a.device_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#c084fc' }}>Zone: {a.room_name}</div>
-                      </td>
-                      <td>
-                        <span style={{
-                          fontSize: '0.75rem',
-                          background: 'rgba(167, 139, 250, 0.12)',
-                          color: '#a78bfa',
-                          padding: '2px 8px',
-                          borderRadius: '8px',
-                        }}>
-                          {a.device_type}
-                        </span>
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-                        ({a.x.toFixed(1)}m, {a.y.toFixed(1)}m{a.z ? `, ${a.z.toFixed(1)}m` : ''})
-                      </td>
+                  {anchors.map(a => {
+                    const isDemo = a.device_name.includes('[Demo');
+                    const displayName = isDemo ? a.device_name.replace('[Demo Anchor] ', '') : a.device_name;
+                    return (
+                      <tr key={a.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td>{a.floor_name || '—'}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: isDemo ? 'rgba(234, 179, 8, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                              color: isDemo ? '#eab308' : '#38bdf8',
+                              border: `1px solid ${isDemo ? 'rgba(234, 179, 8, 0.25)' : 'rgba(56, 189, 248, 0.25)'}`
+                            }}>
+                              {isDemo ? 'Demo' : 'Manual'}
+                            </span>
+                            <span style={{ fontWeight: 500 }}>{displayName}</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#c084fc', marginTop: '3px' }}>Zone: {a.room_name}</div>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            background: 'rgba(167, 139, 250, 0.12)',
+                            color: '#a78bfa',
+                            padding: '2px 8px',
+                            borderRadius: '8px',
+                          }}>
+                            {a.device_type}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                          ({a.x.toFixed(2)}m, {a.y.toFixed(2)}m{a.z !== null && a.z !== undefined ? `, ${a.z.toFixed(2)}m` : ''})
+                        </td>
                       <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.notes || '—'}</td>
                       <td style={{ textAlign: 'right' }}>
                         <button
@@ -351,7 +376,7 @@ export default function Anchors() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

@@ -160,6 +160,44 @@ export default function Heatmap() {
   const floorReadings = readings.filter(r => r.floor_id === selectedFloorId);
   const floorAnchors = anchors.filter(a => a.floor_id === selectedFloorId);
 
+  // Dynamic bounding box coordinates calculation
+  const floorW = selectedFloor?.width ?? 10;
+  const floorH = selectedFloor?.height ?? 10;
+
+  let minX = 0;
+  let maxX = floorW;
+  let minY = 0;
+  let maxY = floorH;
+
+  for (const p of [...floorReadings, ...floorAnchors]) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  for (const wall of walls) {
+    if (wall.x1 < minX) minX = wall.x1;
+    if (wall.x2 < minX) minX = wall.x2;
+    if (wall.x1 > maxX) maxX = wall.x1;
+    if (wall.x2 > maxX) maxX = wall.x2;
+    if (wall.y1 < minY) minY = wall.y1;
+    if (wall.y2 < minY) minY = wall.y2;
+    if (wall.y1 > maxY) maxY = wall.y1;
+    if (wall.y2 > maxY) maxY = wall.y2;
+  }
+
+  const renderW = maxX - minX;
+  const renderH = maxY - minY;
+
+  // Coordinate-to-Pixel helpers
+  const getPX = useCallback((x: number) => PADDING + (x - minX) * SCALE, [minX, SCALE]);
+  const getPY = useCallback((y: number) => PADDING + (y - minY) * SCALE, [minY, SCALE]);
+
+  // Pixel-to-Coordinate helpers
+  const getMX = useCallback((px: number) => minX + px / SCALE, [minX, SCALE]);
+  const getMY = useCallback((py: number) => minY + py / SCALE, [minY, SCALE]);
+
   // Draw loop
   const draw = useCallback((animTime: number) => {
     const canvas = canvasRef.current;
@@ -168,10 +206,8 @@ export default function Heatmap() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const floorW = selectedFloor.width;
-    const floorH = selectedFloor.height;
-    const canvasW = floorW * SCALE + PADDING * 2;
-    const canvasH = floorH * SCALE + PADDING * 2;
+    const canvasW = renderW * SCALE + PADDING * 2;
+    const canvasH = renderH * SCALE + PADDING * 2;
 
     if (canvas.width !== canvasW || canvas.height !== canvasH) {
       canvas.width = canvasW;
@@ -186,7 +222,7 @@ export default function Heatmap() {
     if (floorplanImage) {
       ctx.save();
       ctx.globalAlpha = 0.35;
-      ctx.drawImage(floorplanImage, PADDING, PADDING, floorW * SCALE, floorH * SCALE);
+      ctx.drawImage(floorplanImage, getPX(0), getPY(0), floorW * SCALE, floorH * SCALE);
       ctx.restore();
     }
 
@@ -195,10 +231,10 @@ export default function Heatmap() {
       const points = floorReadings.map(r => ({ x: r.x, y: r.y, rssi: r.rssi }));
       const resolution = 3;
 
-      for (let px = 0; px < floorW * SCALE; px += resolution) {
-        for (let py = 0; py < floorH * SCALE; py += resolution) {
-          const mx = px / SCALE;
-          const my = py / SCALE;
+      for (let px = 0; px < renderW * SCALE; px += resolution) {
+        for (let py = 0; py < renderH * SCALE; py += resolution) {
+          const mx = getMX(px);
+          const my = getMY(py);
           const rssi = idwInterpolate(mx, my, points);
           const [r, g, b] = rssiToColor(rssi);
 
@@ -213,8 +249,8 @@ export default function Heatmap() {
     if (showWaves && floorReadings.length > 0) {
       const timeSec = animTime * 0.0015;
       for (const reading of floorReadings) {
-        const px = PADDING + reading.x * SCALE;
-        const py = PADDING + reading.y * SCALE;
+        const px = getPX(reading.x);
+        const py = getPY(reading.y);
         const [r, g, b] = rssiToColor(reading.rssi);
 
         // Stronger signals propagate faster/further
@@ -239,14 +275,14 @@ export default function Heatmap() {
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= floorW; x++) {
       ctx.beginPath();
-      ctx.moveTo(PADDING + x * SCALE, PADDING);
-      ctx.lineTo(PADDING + x * SCALE, PADDING + floorH * SCALE);
+      ctx.moveTo(getPX(x), getPY(0));
+      ctx.lineTo(getPX(x), getPY(floorH));
       ctx.stroke();
     }
     for (let y = 0; y <= floorH; y++) {
       ctx.beginPath();
-      ctx.moveTo(PADDING, PADDING + y * SCALE);
-      ctx.lineTo(PADDING + floorW * SCALE, PADDING + y * SCALE);
+      ctx.moveTo(getPX(0), getPY(y));
+      ctx.lineTo(getPX(floorW), getPY(y));
       ctx.stroke();
     }
 
@@ -256,8 +292,8 @@ export default function Heatmap() {
     ctx.lineCap = 'round';
     for (const wall of walls) {
       ctx.beginPath();
-      ctx.moveTo(PADDING + wall.x1 * SCALE, PADDING + wall.y1 * SCALE);
-      ctx.lineTo(PADDING + wall.x2 * SCALE, PADDING + wall.y2 * SCALE);
+      ctx.moveTo(getPX(wall.x1), getPY(wall.y1));
+      ctx.lineTo(getPX(wall.x2), getPY(wall.y2));
       ctx.stroke();
     }
 
@@ -267,21 +303,21 @@ export default function Heatmap() {
       ctx.lineWidth = 3;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
-      ctx.moveTo(PADDING + drawingStart.x * SCALE, PADDING + drawingStart.y * SCALE);
-      ctx.lineTo(PADDING + drawingCurrent.x * SCALE, PADDING + drawingCurrent.y * SCALE);
+      ctx.moveTo(getPX(drawingStart.x), getPY(drawingStart.y));
+      ctx.lineTo(getPX(drawingCurrent.x), getPY(drawingCurrent.y));
       ctx.stroke();
       ctx.setLineDash([]); // Reset dash
     }
 
-    // 7. Outer field boundary
+    // 7. Outer floor boundary
     ctx.strokeStyle = isDemoMode ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.4)';
     ctx.lineWidth = 2;
-    ctx.strokeRect(PADDING, PADDING, floorW * SCALE, floorH * SCALE);
+    ctx.strokeRect(getPX(0), getPY(0), floorW * SCALE, floorH * SCALE);
 
     // 8. Plot Scanned Points (Glow + dot)
     for (const reading of floorReadings) {
-      const px = PADDING + reading.x * SCALE;
-      const py = PADDING + reading.y * SCALE;
+      const px = getPX(reading.x);
+      const py = getPY(reading.y);
       const [r, g, b] = rssiToColor(reading.rssi);
 
       // Radial glow
@@ -315,8 +351,8 @@ export default function Heatmap() {
     if (showAnchors) {
       const timeSec = animTime * 0.001;
       for (const anchor of floorAnchors) {
-        const px = PADDING + anchor.x * SCALE;
-        const py = PADDING + anchor.y * SCALE;
+        const px = getPX(anchor.x);
+        const py = getPY(anchor.y);
         const color = '#a78bfa'; // purple
 
         // Concentric expanding visual signal bubbles
@@ -361,18 +397,18 @@ export default function Heatmap() {
       }
     }
 
-    // 9. Coordinate Axis Labels
+    // 9. Coordinate Axis Labels (Relative dynamically shifted)
     ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    for (let x = 0; x <= floorW; x += 2) {
-      ctx.fillText(`${x}m`, PADDING + x * SCALE, PADDING - 8);
+    for (let x = Math.floor(minX); x <= Math.ceil(maxX); x += 2) {
+      ctx.fillText(`${x}m`, getPX(x), PADDING - 8);
     }
     ctx.textAlign = 'right';
-    for (let y = 0; y <= floorH; y += 2) {
-      ctx.fillText(`${y}m`, PADDING - 8, PADDING + y * SCALE + 4);
+    for (let y = Math.floor(minY); y <= Math.ceil(maxY); y += 2) {
+      ctx.fillText(`${y}m`, PADDING - 8, getPY(y) + 4);
     }
-  }, [selectedFloor, floorReadings, floorAnchors, showAnchors, floorplanImage, walls, drawMode, drawingStart, drawingCurrent, showWaves, SCALE]);
+  }, [selectedFloor, floorReadings, floorAnchors, showAnchors, floorplanImage, walls, drawMode, drawingStart, drawingCurrent, showWaves, SCALE, minX, maxX, minY, maxY, renderW, renderH, getPX, getPY, getMX, getMY]);
 
   // Request Animation Frame loop
   useEffect(() => {
@@ -424,8 +460,8 @@ export default function Heatmap() {
     const x = e.clientX - rect.left - PADDING;
     const y = e.clientY - rect.top - PADDING;
 
-    const mx = Math.max(0, Math.min(selectedFloor.width, x / SCALE));
-    const my = Math.max(0, Math.min(selectedFloor.height, y / SCALE));
+    const mx = getMX(x);
+    const my = getMY(y);
 
     if (drawMode) {
       setDrawingStart({ x: mx, y: my });
@@ -443,8 +479,8 @@ export default function Heatmap() {
 
     setMousePos({ x: e.clientX, y: e.clientY });
 
-    const mx = Math.max(0, Math.min(selectedFloor.width, (x - PADDING) / SCALE));
-    const my = Math.max(0, Math.min(selectedFloor.height, (y - PADDING) / SCALE));
+    const mx = getMX(x - PADDING);
+    const my = getMY(y - PADDING);
 
     if (drawMode && drawingStart) {
       setDrawingCurrent({ x: mx, y: my });
@@ -512,8 +548,8 @@ export default function Heatmap() {
     const x = e.clientX - rect.left - PADDING;
     const y = e.clientY - rect.top - PADDING;
 
-    const mx = Math.max(0, Math.min(selectedFloor.width, x / SCALE)).toFixed(1);
-    const my = Math.max(0, Math.min(selectedFloor.height, y / SCALE)).toFixed(1);
+    const mx = getMX(x).toFixed(2);
+    const my = getMY(y).toFixed(2);
 
     const isAnchor = window.confirm(`Coordinates double-clicked: (${mx}m, ${my}m).\n\nClick OK to register a new Location Anchor at this point.\nClick Cancel to record a standard Wi-Fi Scan Point.`);
     if (isAnchor) {
