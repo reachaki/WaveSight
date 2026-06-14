@@ -22,6 +22,8 @@ interface ReadingRow {
   floor_name: string;
   room_id: string | null;
   room_name: string | null;
+  anchor_id: string | null;
+  anchor_name: string | null;
 }
 
 // GET /api/readings — list all readings with point/floor/room info
@@ -47,11 +49,14 @@ readingsRouter.get('/readings', (req: Request, res: Response) => {
       f.id as floor_id,
       f.name as floor_name,
       r.id as room_id,
-      r.name as room_name
+      r.name as room_name,
+      a.id as anchor_id,
+      a.device_name as anchor_name
     FROM wifi_readings wr
     JOIN measurement_points mp ON wr.point_id = mp.id
     JOIN floors f ON mp.floor_id = f.id
     LEFT JOIN rooms r ON mp.room_id = r.id
+    LEFT JOIN anchors a ON wr.anchor_id = a.id
   `;
 
   const conditions: string[] = [];
@@ -88,6 +93,7 @@ readingsRouter.post('/readings', (req: Request, res: Response) => {
     floor_name,
     room_id,
     room_name,
+    anchor_id,
     x,
     y,
     z = 0,
@@ -118,8 +124,8 @@ readingsRouter.post('/readings', (req: Request, res: Response) => {
     INSERT INTO measurement_points (id, floor_id, room_id, x, y, z, label) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const insertReading = db.prepare(`
-    INSERT INTO wifi_readings (id, point_id, ssid, rssi, frequency_mhz, channel, device_name, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO wifi_readings (id, point_id, anchor_id, ssid, rssi, frequency_mhz, channel, device_name, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const transaction = db.transaction(() => {
@@ -160,6 +166,7 @@ readingsRouter.post('/readings', (req: Request, res: Response) => {
     insertReading.run(
       readingId,
       pointId,
+      anchor_id || null,
       ssid,
       rssi,
       frequency_mhz || null,
@@ -168,7 +175,7 @@ readingsRouter.post('/readings', (req: Request, res: Response) => {
       notes || null,
     );
 
-    return { readingId, pointId, floorId: resolvedFloorId, roomId: resolvedRoomId };
+    return { readingId, pointId, floorId: resolvedFloorId, roomId: resolvedRoomId, anchorId: anchor_id || null };
   });
 
   try {

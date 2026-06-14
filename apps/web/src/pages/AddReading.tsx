@@ -9,6 +9,16 @@ interface Floor {
   name: string;
 }
 
+interface Anchor {
+  id: string;
+  floor_id: string;
+  device_name: string;
+  room_name: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
 interface Reading {
   reading_id: string;
   ssid: string;
@@ -23,7 +33,10 @@ interface Reading {
   z: number;
   label: string | null;
   floor_name: string;
+  floor_id: string;
   room_name: string | null;
+  anchor_id: string | null;
+  anchor_name: string | null;
 }
 
 function getRssiClass(rssi: number): string {
@@ -34,9 +47,58 @@ function getRssiClass(rssi: number): string {
   return 'rssi-poor';
 }
 
+function calculateConfidence(
+  x: number,
+  y: number,
+  rssi: number,
+  anchors: Anchor[],
+  floorId: string
+): 'High' | 'Medium' | 'Low' {
+  if (rssi <= -80) return 'Low';
+
+  const floorAnchors = anchors.filter(a => a.floor_id === floorId);
+  let nearbyCount = 0;
+
+  for (const a of floorAnchors) {
+    const dist = Math.sqrt((x - a.x) ** 2 + (y - a.y) ** 2);
+    if (dist <= 4.5) {
+      nearbyCount++;
+    }
+  }
+
+  if (nearbyCount >= 3 && rssi >= -75) return 'High';
+  if (nearbyCount >= 1) return 'Medium';
+  return 'Low';
+}
+
+function getConfidenceBadge(confidence: 'High' | 'Medium' | 'Low') {
+  let bg = 'rgba(248, 113, 113, 0.15)';
+  let color = '#f87171';
+  if (confidence === 'High') {
+    bg = 'rgba(52, 211, 153, 0.15)';
+    color = '#34d399';
+  } else if (confidence === 'Medium') {
+    bg = 'rgba(251, 191, 36, 0.15)';
+    color = '#fbbf24';
+  }
+  return (
+    <span style={{
+      fontSize: '0.75rem',
+      background: bg,
+      color: color,
+      padding: '2px 8px',
+      borderRadius: '8px',
+      fontWeight: 600
+    }}>
+      {confidence}
+    </span>
+  );
+}
+
 export default function AddReading() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Query params for direct click mapping
@@ -49,6 +111,7 @@ export default function AddReading() {
   const [floorId, setFloorId] = useState(qFloorId);
   const [newFloorName, setNewFloorName] = useState('');
   const [roomName, setRoomName] = useState('');
+  const [anchorId, setAnchorId] = useState('');
   const [label, setLabel] = useState('');
   const [x, setX] = useState(qX);
   const [y, setY] = useState(qY);
@@ -61,7 +124,7 @@ export default function AddReading() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch floors and readings
+  // Fetch floors, readings, anchors
   useEffect(() => {
     fetch(`${API}/floors`).then(r => r.json()).then(data => {
       setFloors(data);
@@ -71,7 +134,9 @@ export default function AddReading() {
         setFloorId(data[0].id);
       }
     }).catch(() => {});
+    
     fetch(`${API}/readings`).then(r => r.json()).then(setReadings).catch(() => {});
+    fetch(`${API}/anchors`).then(r => r.json()).then(setAnchors).catch(() => {});
   }, [qFloorId]);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -108,6 +173,11 @@ export default function AddReading() {
       body.room_name = roomName;
     }
 
+    // Optional Linked Anchor
+    if (anchorId) {
+      body.anchor_id = anchorId;
+    }
+
     try {
       const res = await fetch(`${API}/readings`, {
         method: 'POST',
@@ -134,6 +204,7 @@ export default function AddReading() {
       setDeviceName('');
       setNotes('');
       setRoomName('');
+      setAnchorId('');
 
       // Refresh data
       const [newFloors, newReadings] = await Promise.all([
@@ -148,6 +219,8 @@ export default function AddReading() {
       setSubmitting(false);
     }
   };
+
+  const floorAnchors = anchors.filter(a => a.floor_id === floorId);
 
   return (
     <div>
@@ -170,7 +243,7 @@ export default function AddReading() {
               <select
                 className="form-select"
                 value={floorId}
-                onChange={e => setFloorId(e.target.value)}
+                onChange={e => { setFloorId(e.target.value); setAnchorId(''); }}
                 required
               >
                 <option value="">Select a floor...</option>
@@ -247,7 +320,7 @@ export default function AddReading() {
                 />
               </div>
               <div className="form-group">
-                <label>User-Created Room (Optional)</label>
+                <label>User Room (Optional)</label>
                 <input
                   className="form-input"
                   type="text"
@@ -257,6 +330,23 @@ export default function AddReading() {
                 />
               </div>
             </div>
+
+            {/* Linked Location Anchor */}
+            {floorAnchors.length > 0 && (
+              <div className="form-group">
+                <label>Linked Reference Anchor (Optional)</label>
+                <select
+                  className="form-select"
+                  value={anchorId}
+                  onChange={e => setAnchorId(e.target.value)}
+                >
+                  <option value="">No link (autonomous scan)</option>
+                  {floorAnchors.map(a => (
+                    <option key={a.id} value={a.id}>{a.device_name} ({a.room_name})</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* SSID & RSSI */}
             <div className="form-row">
@@ -364,38 +454,46 @@ export default function AddReading() {
                   <tr>
                     <th>Floor</th>
                     <th>Room / Label</th>
-                    <th>SSID</th>
+                    <th>SSID / Reference</th>
                     <th>RSSI</th>
-                    <th>Coordinates (X, Y)</th>
-                    <th>Device</th>
+                    <th>Confidence</th>
+                    <th>Coordinates</th>
                     <th>Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {readings.map(r => (
-                    <tr key={r.reading_id}>
-                      <td>{r.floor_name}</td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{r.label || '—'}</div>
-                        {r.room_name && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Room: {r.room_name}</div>
-                        )}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{r.ssid}</td>
-                      <td>
-                        <span className={`rssi-badge ${getRssiClass(r.rssi)}`}>
-                          {r.rssi} dBm
-                        </span>
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-                        ({r.x.toFixed(1)}m, {r.y.toFixed(1)}m{r.z ? `, ${r.z.toFixed(1)}m` : ''})
-                      </td>
-                      <td>{r.device_name || '—'}</td>
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        {new Date(r.recorded_at + 'Z').toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                  {readings.map(r => {
+                    const confidence = calculateConfidence(r.x, r.y, r.rssi, anchors, r.floor_id);
+                    return (
+                      <tr key={r.reading_id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td>{r.floor_name}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{r.label || '—'}</div>
+                          {r.room_name && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Room: {r.room_name}</div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{r.ssid}</div>
+                          {r.anchor_name && (
+                            <div style={{ fontSize: '0.75rem', color: '#a78bfa' }}>⚓ Anchor: {r.anchor_name}</div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`rssi-badge ${getRssiClass(r.rssi)}`}>
+                            {r.rssi} dBm
+                          </span>
+                        </td>
+                        <td>{getConfidenceBadge(confidence)}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                          ({r.x.toFixed(1)}m, {r.y.toFixed(1)}m)
+                        </td>
+                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {new Date(r.recorded_at + 'Z').toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -101,8 +101,12 @@ dashboardRouter.get('/dashboard', (_req: Request, res: Response) => {
     };
   });
 
+  // Total anchors
+  const anchorsCount = db.prepare('SELECT COUNT(*) as count FROM anchors').get() as { count: number };
+
   res.json({
     totalReadings: totalRow.count,
+    totalAnchors: anchorsCount.count,
     strongestPoint: strongestPoint ? {
       rssi: strongestPoint.rssi,
       label: `${strongestPoint.ssid} (${strongestPoint.floor_name} at ${strongestPoint.x}x, ${strongestPoint.y}y)`

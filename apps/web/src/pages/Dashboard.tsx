@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 interface DashboardStats {
   totalReadings: number;
+  totalAnchors: number;
   strongestPoint: { rssi: number; label: string } | null;
   weakestPoint: { rssi: number; label: string } | null;
   lastReading: { ssid: string; rssi: number; label: string; time: string } | null;
@@ -121,6 +122,13 @@ export default function Dashboard() {
           <div className="stat-value">{stats?.totalReadings ?? 0}</div>
           <div className="stat-label">Total Readings</div>
           <div className="stat-detail">Across all scanned fields</div>
+        </div>
+
+        <div className="card stat-card accent-purple" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div className="stat-icon">⚓</div>
+          <div className="stat-value">{stats?.totalAnchors ?? 0}</div>
+          <div className="stat-label">Active Anchors</div>
+          <div className="stat-detail">Trusted location beacons</div>
         </div>
 
         <div className="card stat-card accent-green">

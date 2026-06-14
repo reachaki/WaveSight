@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health';
 import { floorsRouter } from './routes/floors';
 import { readingsRouter } from './routes/readings';
 import { dashboardRouter } from './routes/dashboard';
+import { anchorsRouter } from './routes/anchors';
 import { seedIfEmpty } from './seed';
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api', healthRouter);
 app.use('/api', floorsRouter);
 app.use('/api', readingsRouter);
 app.use('/api', dashboardRouter);
+app.use('/api', anchorsRouter);
 
 // Start server
 app.listen(PORT, () => {

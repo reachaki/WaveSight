@@ -48,9 +48,23 @@ function initSchema(): void {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS anchors (
+      id TEXT PRIMARY KEY,
+      floor_id TEXT NOT NULL REFERENCES floors(id) ON DELETE CASCADE,
+      device_name TEXT NOT NULL,
+      room_name TEXT NOT NULL,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      z REAL DEFAULT 0,
+      device_type TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS wifi_readings (
       id TEXT PRIMARY KEY,
       point_id TEXT NOT NULL REFERENCES measurement_points(id) ON DELETE CASCADE,
+      anchor_id TEXT REFERENCES anchors(id) ON DELETE SET NULL,
       ssid TEXT NOT NULL,
       rssi INTEGER NOT NULL,
       frequency_mhz INTEGER,

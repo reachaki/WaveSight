@@ -24,6 +24,19 @@ interface Reading {
   floor_id: string;
   room_name: string | null;
   device_name: string | null;
+  anchor_name: string | null;
+}
+
+interface Anchor {
+  id: string;
+  floor_id: string;
+  device_name: string;
+  room_name: string;
+  x: number;
+  y: number;
+  z: number;
+  device_type: string;
+  notes: string | null;
 }
 
 interface Wall {
@@ -41,18 +54,18 @@ function rssiToColor(rssi: number): string {
 }
 
 function rssiToHeight(rssi: number): number {
-  // Map RSSI to height: -20 dBm → 3.2m, -90 dBm → 0.3m
   const t = Math.max(0, Math.min(1, (rssi + 90) / 70));
   return 0.3 + t * 2.9;
 }
 
 /** Animated floating measurement sphere */
-function SignalMarker({ position, rssi, label, ssid, deviceName }: {
+function SignalMarker({ position, rssi, label, ssid, deviceName, anchorName }: {
   position: [number, number, number];
   rssi: number;
   label: string | null;
   ssid: string;
   deviceName: string | null;
+  anchorName: string | null;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -60,7 +73,6 @@ function SignalMarker({ position, rssi, label, ssid, deviceName }: {
 
   useFrame((state) => {
     if (meshRef.current) {
-      // Gentle floating animation
       meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 1.5 + position[0] * 2) * 0.06;
     }
   });
@@ -107,7 +119,7 @@ function SignalMarker({ position, rssi, label, ssid, deviceName }: {
           outlineWidth={0.02}
           outlineColor="#070a13"
         >
-          {`${label || ssid} · ${rssi} dBm${deviceName ? ` · ${deviceName}` : ''}`}
+          {`${label || ssid} · ${rssi} dBm${deviceName ? ` · ${deviceName}` : ''}${anchorName ? ` · Ref: ${anchorName}` : ''}`}
         </Text>
       )}
 
@@ -178,6 +190,62 @@ function ExtrudedWall({ wall }: { wall: Wall }) {
   );
 }
 
+/** Location Anchor (3D pyramid shape + glowing sphere) */
+function AnchorNode3D({ anchor }: { anchor: Anchor }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const [hovered, setHovered] = useState(false);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      // Gentle spin
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.8;
+    }
+  });
+
+  return (
+    <group>
+      {/* Pyramid Mesh representing anchor */}
+      <mesh
+        ref={meshRef}
+        position={[anchor.x, 0.2, anchor.y]}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <coneGeometry args={[0.16, 0.4, 4]} />
+        <meshStandardMaterial 
+          color={hovered ? '#c084fc' : '#a78bfa'} 
+          emissive="#a78bfa" 
+          emissiveIntensity={hovered ? 0.9 : 0.5} 
+        />
+      </mesh>
+
+      {/* Glowing physical bubble boundaries (wireframe sphere) */}
+      <mesh position={[anchor.x, 0.05, anchor.y]}>
+        <sphereGeometry args={[2.0, 16, 12]} />
+        <meshBasicMaterial 
+          color="#c084fc" 
+          transparent 
+          opacity={hovered ? 0.08 : 0.04} 
+          wireframe
+        />
+      </mesh>
+
+      {/* Anchor Text labels */}
+      <Text
+        position={[anchor.x, 0.5, anchor.y]}
+        fontSize={0.16}
+        color="#c084fc"
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={0.018}
+        outlineColor="#070a13"
+      >
+        {`⚓ ${anchor.device_name}\n(${anchor.room_name})`}
+      </Text>
+    </group>
+  );
+}
+
 /** Floor plane with optional background floorplan texture */
 function FloorPlane({ width, height, texture }: { width: number; height: number; texture: THREE.Texture | null }) {
   return (
@@ -203,11 +271,13 @@ function FloorPlane({ width, height, texture }: { width: number; height: number;
 }
 
 /** The full 3D scene */
-function Scene({ floor, readings, walls, texture }: { 
+function Scene({ floor, readings, anchors, walls, texture, showAnchors }: { 
   floor: Floor; 
   readings: Reading[]; 
+  anchors: Anchor[];
   walls: Wall[];
   texture: THREE.Texture | null;
+  showAnchors: boolean;
 }) {
   return (
     <>
@@ -238,6 +308,11 @@ function Scene({ floor, readings, walls, texture }: {
         <ExtrudedWall key={index} wall={wall} />
       ))}
 
+      {/* Location Anchors */}
+      {showAnchors && anchors.map(a => (
+        <AnchorNode3D key={a.id} anchor={a} />
+      ))}
+
       {/* Wave ripples */}
       {readings.map(r => (
         <WaveRipple
@@ -256,6 +331,7 @@ function Scene({ floor, readings, walls, texture }: {
           label={r.label}
           ssid={r.ssid}
           deviceName={r.device_name}
+          anchorName={r.anchor_name}
         />
       ))}
 
@@ -274,7 +350,11 @@ function Scene({ floor, readings, walls, texture }: {
 export default function Visualiser3D() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState('');
+  
+  // Settings & layers
+  const [showAnchors, setShowAnchors] = useState<boolean>(true);
   
   // Floorplan image and walls state
   const [floorplanTexture, setFloorplanTexture] = useState<THREE.Texture | null>(null);
@@ -284,9 +364,11 @@ export default function Visualiser3D() {
     Promise.all([
       fetch(`${API}/floors`).then(r => r.json()),
       fetch(`${API}/readings`).then(r => r.json()),
-    ]).then(([f, r]) => {
+      fetch(`${API}/anchors`).then(r => r.json()),
+    ]).then(([f, r, a]) => {
       setFloors(f);
       setReadings(r);
+      setAnchors(a);
       if (f.length > 0) setSelectedFloorId(f[0].id);
     }).catch(() => {});
   }, []);
@@ -322,6 +404,7 @@ export default function Visualiser3D() {
 
   const selectedFloor = floors.find(f => f.id === selectedFloorId);
   const floorReadings = readings.filter(r => r.floor_id === selectedFloorId);
+  const floorAnchors = anchors.filter(a => a.floor_id === selectedFloorId);
 
   return (
     <div>
@@ -330,22 +413,36 @@ export default function Visualiser3D() {
         <p>Interactive 3D field visualisation mapping signal height from RSSI intensity.</p>
       </div>
 
-      {/* Floor selector */}
-      <div style={{ marginBottom: 'var(--space-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <label style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Floor Field:</label>
-        <select
-          className="form-select"
-          style={{ width: 'auto', minWidth: '220px' }}
-          value={selectedFloorId}
-          onChange={e => setSelectedFloorId(e.target.value)}
-        >
-          {floors.map(f => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {floorReadings.length} active signal markers · Drag to rotate · Scroll to zoom
-        </span>
+      {/* Control bar */}
+      <div style={{ marginBottom: 'var(--space-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        {/* Floor selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+          <label style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Floor Field:</label>
+          <select
+            className="form-select"
+            style={{ width: 'auto', minWidth: '220px' }}
+            value={selectedFloorId}
+            onChange={e => setSelectedFloorId(e.target.value)}
+          >
+            {floors.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            {floorReadings.length} active markers · {floorAnchors.length} anchors
+          </span>
+        </div>
+
+        {/* Layer control */}
+        <div>
+          <button
+            onClick={() => setShowAnchors(!showAnchors)}
+            className={`btn ${showAnchors ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+          >
+            {showAnchors ? '⚓ Hide Beacons' : '⚓ Show Beacons'}
+          </button>
+        </div>
       </div>
 
       {/* 3D Canvas */}
@@ -371,8 +468,10 @@ export default function Visualiser3D() {
               <Scene 
                 floor={selectedFloor} 
                 readings={floorReadings} 
+                anchors={floorAnchors}
                 walls={walls}
                 texture={floorplanTexture}
+                showAnchors={showAnchors}
               />
             </Canvas>
 
@@ -414,21 +513,21 @@ export default function Visualiser3D() {
         border: '1px solid var(--border-subtle)',
         flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>Marker Height & Intensity:</span>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>3D Mesh Indicators:</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#34d399' }} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Strong (high)</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Strong Scan Marker</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#fbbf24' }} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Fair (mid)</span>
+          <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '12px solid #a78bfa' }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Anchor Node (Pyramid)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f87171' }} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Weak (low)</span>
+          <div style={{ width: 14, height: 14, border: '1.5px dashed #c084fc', borderRadius: '50%' }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Anchor Bubble (Wireframe)</span>
         </div>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          · Extruded blue blocks represent custom walls · Hover markers for logs
+          · Markers height indicates relative RSSI · Extruded blue blocks represent walls
         </span>
       </div>
     </div>

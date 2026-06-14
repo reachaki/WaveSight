@@ -23,6 +23,18 @@ interface Reading {
   device_name: string | null;
 }
 
+interface Anchor {
+  id: string;
+  floor_id: string;
+  device_name: string;
+  room_name: string;
+  x: number;
+  y: number;
+  z: number;
+  device_type: string;
+  notes: string | null;
+}
+
 interface Wall {
   x1: number;
   y1: number;
@@ -82,8 +94,11 @@ export default function Heatmap() {
 
   const [floors, setFloors] = useState<Floor[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [anchors, setAnchors] = useState<Anchor[]>([]);
+  
   const [selectedFloorId, setSelectedFloorId] = useState('');
   const [hoveredPoint, setHoveredPoint] = useState<Reading | null>(null);
+  const [hoveredAnchor, setHoveredAnchor] = useState<Anchor | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Floorplan background image and walls state
@@ -91,6 +106,7 @@ export default function Heatmap() {
   const [walls, setWalls] = useState<Wall[]>([]);
   const [drawMode, setDrawMode] = useState<boolean>(false);
   const [showWaves, setShowWaves] = useState<boolean>(true);
+  const [showAnchors, setShowAnchors] = useState<boolean>(true);
 
   // Drawing state
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
@@ -99,14 +115,16 @@ export default function Heatmap() {
   const SCALE = 65;
   const PADDING = 40;
 
-  // Load floors and readings
+  // Load floors, readings, anchors
   useEffect(() => {
     Promise.all([
       fetch(`${API}/floors`).then(r => r.json()),
       fetch(`${API}/readings`).then(r => r.json()),
-    ]).then(([f, r]) => {
+      fetch(`${API}/anchors`).then(r => r.json()),
+    ]).then(([f, r, a]) => {
       setFloors(f);
       setReadings(r);
+      setAnchors(a);
       if (f.length > 0) setSelectedFloorId(f[0].id);
     }).catch(() => {});
   }, []);
@@ -140,6 +158,7 @@ export default function Heatmap() {
 
   const selectedFloor = floors.find(f => f.id === selectedFloorId);
   const floorReadings = readings.filter(r => r.floor_id === selectedFloorId);
+  const floorAnchors = anchors.filter(a => a.floor_id === selectedFloorId);
 
   // Draw loop
   const draw = useCallback((animTime: number) => {
@@ -292,6 +311,56 @@ export default function Heatmap() {
       ctx.fillText(`${reading.rssi}`, px, py - 11);
     }
 
+    // 8.5 Plot Location Anchors if showAnchors is enabled
+    if (showAnchors) {
+      const timeSec = animTime * 0.001;
+      for (const anchor of floorAnchors) {
+        const px = PADDING + anchor.x * SCALE;
+        const py = PADDING + anchor.y * SCALE;
+        const color = '#a78bfa'; // purple
+
+        // Concentric expanding visual signal bubbles
+        for (let ring = 0; ring < 2; ring++) {
+          const radius = (((timeSec + ring * 1.5)) % 3.0) * SCALE * 0.5;
+          const maxRadius = 3.0 * SCALE * 0.5;
+          const opacity = Math.max(0, 1 - radius / maxRadius) * 0.28;
+
+          ctx.strokeStyle = `rgba(167, 139, 250, ${opacity})`;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Draw anchor marker (purple diamond/square shape)
+        ctx.fillStyle = color;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-6, -6, 12, 12);
+        ctx.restore();
+
+        // Draw inner white dot
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Circular border outline
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px, py, 9, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Text label
+        ctx.fillStyle = '#c084fc';
+        ctx.font = 'bold 9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`⚓ ${anchor.room_name}`, px, py + 18);
+      }
+    }
+
     // 9. Coordinate Axis Labels
     ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
     ctx.font = '10px monospace';
@@ -303,7 +372,7 @@ export default function Heatmap() {
     for (let y = 0; y <= floorH; y += 2) {
       ctx.fillText(`${y}m`, PADDING - 8, PADDING + y * SCALE + 4);
     }
-  }, [selectedFloor, floorReadings, floorplanImage, walls, drawMode, drawingStart, drawingCurrent, showWaves, SCALE]);
+  }, [selectedFloor, floorReadings, floorAnchors, showAnchors, floorplanImage, walls, drawMode, drawingStart, drawingCurrent, showWaves, SCALE]);
 
   // Request Animation Frame loop
   useEffect(() => {
@@ -381,7 +450,7 @@ export default function Heatmap() {
       setDrawingCurrent({ x: mx, y: my });
     }
 
-    // Hover tooltip detection
+    // Hover tooltip detection (Scanned Points)
     let closest: Reading | null = null;
     let closestDist = Infinity;
     for (const r of floorReadings) {
@@ -392,6 +461,22 @@ export default function Heatmap() {
       }
     }
     setHoveredPoint(closest);
+
+    // Hover tooltip detection (Anchors)
+    if (showAnchors) {
+      let closestAnchor: Anchor | null = null;
+      let closestAnchorDist = Infinity;
+      for (const a of floorAnchors) {
+        const dist = Math.sqrt((mx - a.x) ** 2 + (my - a.y) ** 2);
+        if (dist < 0.4 && dist < closestAnchorDist) {
+          closestAnchor = a;
+          closestAnchorDist = dist;
+        }
+      }
+      setHoveredAnchor(closestAnchor);
+    } else {
+      setHoveredAnchor(null);
+    }
   };
 
   const handleMouseUp = () => {
@@ -430,8 +515,12 @@ export default function Heatmap() {
     const mx = Math.max(0, Math.min(selectedFloor.width, x / SCALE)).toFixed(1);
     const my = Math.max(0, Math.min(selectedFloor.height, y / SCALE)).toFixed(1);
 
-    // Direct navigate to AddReading pre-populated with coordinates!
-    navigate(`/add-reading?x=${mx}&y=${my}&floorId=${selectedFloorId}`);
+    const isAnchor = window.confirm(`Coordinates double-clicked: (${mx}m, ${my}m).\n\nClick OK to register a new Location Anchor at this point.\nClick Cancel to record a standard Wi-Fi Scan Point.`);
+    if (isAnchor) {
+      navigate(`/anchors?x=${mx}&y=${my}&floorId=${selectedFloorId}`);
+    } else {
+      navigate(`/add-reading?x=${mx}&y=${my}&floorId=${selectedFloorId}`);
+    }
   };
 
   const isDemoMode = selectedFloor?.name.includes('Demo') || false;
@@ -440,7 +529,7 @@ export default function Heatmap() {
     <div>
       <div className="page-header">
         <h2>2D Signal Field</h2>
-        <p>Dynamic wave propagation and signal intensity mapping. Double-click anywhere to record a live scan point.</p>
+        <p>Dynamic wave propagation and signal intensity mapping. Double-click anywhere to add a Scan Point or Anchor.</p>
       </div>
 
       {/* Control bar */}
@@ -466,7 +555,7 @@ export default function Heatmap() {
             ))}
           </select>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {floorReadings.length} scan points
+            {floorReadings.length} scan points · {floorAnchors.length} anchors
           </span>
         </div>
 
@@ -513,7 +602,7 @@ export default function Heatmap() {
             style={{ display: 'block', cursor: drawMode ? 'crosshair' : 'pointer', margin: '0 auto', borderRadius: '4px' }}
           />
 
-          {/* Hover Tooltip */}
+          {/* Hover Tooltip (Scan points) */}
           {hoveredPoint && (
             <div style={{
               position: 'fixed',
@@ -549,10 +638,73 @@ export default function Heatmap() {
               )}
             </div>
           )}
+
+          {/* Hover Tooltip (Anchors) */}
+          {hoveredAnchor && (
+            <div style={{
+              position: 'fixed',
+              left: mousePos.x + 16,
+              top: mousePos.y - 16,
+              background: 'rgba(10, 15, 30, 0.96)',
+              border: '1px solid rgba(167, 139, 250, 0.4)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-sm) var(--space-md)',
+              fontSize: '0.85rem',
+              pointerEvents: 'none',
+              zIndex: 1000,
+              backdropFilter: 'blur(8px)',
+              minWidth: '220px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
+            }}>
+              <div style={{ fontWeight: 600, color: '#c084fc', marginBottom: '4px' }}>
+                ⚓ Location Anchor Beacon
+              </div>
+              <div style={{ fontWeight: 600, marginBottom: '2px' }}>
+                {hoveredAnchor.device_name}
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Zone: <span style={{ color: '#c084fc', fontWeight: 500 }}>{hoveredAnchor.room_name}</span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Device Type: <span style={{ color: 'var(--text-primary)' }}>{hoveredAnchor.device_type}</span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Coordinates: ({hoveredAnchor.x.toFixed(1)}m, {hoveredAnchor.y.toFixed(1)}m)
+              </div>
+              {hoveredAnchor.notes && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', fontStyle: 'italic' }}>
+                  Notes: {hoveredAnchor.notes}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Sidebar Controls */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          {/* Settings Layers */}
+          <div className="card" style={{ padding: 'var(--space-md)' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 600 }}>Active Layers</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showAnchors}
+                  onChange={e => setShowAnchors(e.target.checked)}
+                />
+                Show Location Anchors
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showWaves}
+                  onChange={e => setShowWaves(e.target.checked)}
+                />
+                Show Dynamic Ripple Waves
+              </label>
+            </div>
+          </div>
+
           {/* No Floorplan Loaded alert */}
           {!floorplanImage && (
             <div style={{
@@ -608,9 +760,9 @@ export default function Heatmap() {
           <div className="card" style={{ padding: 'var(--space-md)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Scanner Guide</h4>
             <ol style={{ paddingLeft: '14px', margin: 0, lineHeight: '1.5' }}>
-              <li style={{ marginBottom: '6px' }}>Double-click on the map area to record RSSI at those coordinates.</li>
+              <li style={{ marginBottom: '6px' }}>Double-click on the map area to add a scan point or anchor.</li>
               <li style={{ marginBottom: '6px' }}>Turn on <strong>Draw Wall</strong> to sketch partition boundaries.</li>
-              <li>Toggle animation using <strong>Stop Waves</strong> if CPU usage is high.</li>
+              <li>Toggle layers using the panel above for better scan clarity.</li>
             </ol>
           </div>
         </div>

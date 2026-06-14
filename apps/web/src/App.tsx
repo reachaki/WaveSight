@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard';
 import AddReading from './pages/AddReading';
 import Heatmap from './pages/Heatmap';
 import Visualiser3D from './pages/Visualiser3D';
+import Anchors from './pages/Anchors';
 import About from './pages/About';
 import './App.css';
 
@@ -32,6 +33,10 @@ function App() {
               <span className="nav-icon">📡</span>
               3D Signal Field
             </NavLink>
+            <NavLink to="/anchors">
+              <span className="nav-icon">⚓</span>
+              Anchors
+            </NavLink>
             <NavLink to="/about">
               <span className="nav-icon">ℹ️</span>
               About
@@ -49,6 +54,7 @@ function App() {
             <Route path="/add-reading" element={<AddReading />} />
             <Route path="/heatmap" element={<Heatmap />} />
             <Route path="/3d" element={<Visualiser3D />} />
+            <Route path="/anchors" element={<Anchors />} />
             <Route path="/about" element={<About />} />
           </Routes>
         </main>
