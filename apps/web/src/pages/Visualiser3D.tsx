@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { useDataMode } from '../App';
 import { OrbitControls, Text, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -400,6 +401,7 @@ function Scene({
 }
 
 export default function Visualiser3D() {
+  const { mode } = useDataMode();
   const [floors, setFloors] = useState<Floor[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [anchors, setAnchors] = useState<Anchor[]>([]);
@@ -413,17 +415,29 @@ export default function Visualiser3D() {
   const [walls, setWalls] = useState<Wall[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API}/floors`).then(r => r.json()),
-      fetch(`${API}/readings`).then(r => r.json()),
-      fetch(`${API}/anchors`).then(r => r.json()),
-    ]).then(([f, r, a]) => {
-      setFloors(f);
-      setReadings(r);
-      setAnchors(a);
-      if (f.length > 0) setSelectedFloorId(f[0].id);
-    }).catch(() => {});
-  }, []);
+    if (mode === 'demo') {
+      fetch('http://localhost:3001/api/demo-data')
+        .then(res => res.json())
+        .then(data => {
+          setFloors(data.floors);
+          setReadings(data.readings);
+          setAnchors(data.anchors);
+          if (data.floors.length > 0) setSelectedFloorId(data.floors[0].id);
+        })
+        .catch(() => {});
+    } else {
+      Promise.all([
+        fetch(`${API}/floors`).then(r => r.json()),
+        fetch(`${API}/readings`).then(r => r.json()),
+        fetch(`${API}/anchors`).then(r => r.json()),
+      ]).then(([f, r, a]) => {
+        setFloors(f);
+        setReadings(r);
+        setAnchors(a);
+        if (f.length > 0) setSelectedFloorId(f[0].id);
+      }).catch(() => {});
+    }
+  }, [mode]);
 
   // Load custom walls and layout texture when floor changes
   useEffect(() => {
@@ -492,9 +506,24 @@ export default function Visualiser3D() {
 
   return (
     <div>
-      <div className="page-header">
-        <h2>3D Signal Field</h2>
-        <p>Interactive 3D field visualisation mapping signal height from RSSI intensity.</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        <div>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+            3D Signal Field
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: mode === 'demo' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+              color: mode === 'demo' ? '#eab308' : '#38bdf8',
+              border: `1px solid ${mode === 'demo' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(56, 189, 248, 0.2)'}`
+            }}>
+              {mode === 'demo' ? '🔬 Demo Sandbox' : '🏠 Real Home'}
+            </span>
+          </h2>
+          <p>Interactive 3D field visualisation mapping signal height from RSSI intensity.</p>
+        </div>
       </div>
 
       {/* Control bar */}

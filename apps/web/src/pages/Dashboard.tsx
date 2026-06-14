@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataMode } from '../App';
 
 interface DashboardStats {
   totalReadings: number;
@@ -35,25 +36,33 @@ function formatTime(isoString: string): string {
 }
 
 export default function Dashboard() {
+  const { mode } = useDataMode();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/dashboard')
+    setLoading(true);
+    const url = mode === 'demo'
+      ? 'http://localhost:3001/api/demo-data'
+      : 'http://localhost:3001/api/dashboard';
+
+    fetch(url)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
         return res.json();
       })
       .then(data => {
-        setStats(data);
+        const statsPayload = mode === 'demo' ? data.dashboard : data;
+        setStats(statsPayload);
+        setError(null);
         setLoading(false);
       })
       .catch(err => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [mode]);
 
   if (loading) {
     return (
@@ -81,30 +90,53 @@ export default function Dashboard() {
     );
   }
 
-  const isDemoMode = stats?.strongestPoint?.label.includes('Demo') || stats?.totalReadings === 20;
+  const isDemoMode = mode === 'demo';
 
   return (
     <div>
       {/* Demo Mode Banner */}
       {isDemoMode && (
         <div style={{
-          background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(202, 138, 4, 0.05) 100%)',
-          border: '1px solid rgba(234, 179, 8, 0.3)',
+          background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(202, 138, 4, 0.04) 100%)',
+          border: '1px solid rgba(234, 179, 8, 0.25)',
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-md) var(--space-lg)',
           marginBottom: 'var(--space-lg)',
           display: 'flex',
           alignItems: 'center',
           gap: 'var(--space-md)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-          backdropFilter: 'blur(10px)',
-          animation: 'pulse 3s infinite alternate'
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+          backdropFilter: 'blur(8px)',
         }}>
-          <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+          <span style={{ fontSize: '1.5rem' }}>🔬</span>
           <div>
-            <h4 style={{ color: '#facc15', margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Demo Mode Active</h4>
+            <h4 style={{ color: '#facc15', margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Demo Mode Sandbox Active</h4>
             <p style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.85rem' }}>
-              Currently displaying pre-seeded demonstration readings. To map your physical environment, navigate to <strong>2D Signal Field</strong> or <strong>Add Reading</strong> to record live points.
+              Currently displaying pre-seeded demonstration readings. To view your real physical layout and live manual scans, toggle to <strong>Real Mode</strong> in the sidebar.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Real Mode Info Banner (When empty) */}
+      {!isDemoMode && stats?.totalReadings === 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(56, 189, 248, 0.02) 100%)',
+          border: '1px solid rgba(56, 189, 248, 0.2)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-md) var(--space-lg)',
+          marginBottom: 'var(--space-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-md)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          backdropFilter: 'blur(8px)'
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>🏠</span>
+          <div>
+            <h4 style={{ color: '#38bdf8', margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Real Home Layout Active</h4>
+            <p style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.85rem' }}>
+              You are in Real Mode. Your physical database is currently empty of readings. Go to <strong>2D Signal Field</strong> or <strong>Add Reading</strong> to record manual RSSI points.
             </p>
           </div>
         </div>

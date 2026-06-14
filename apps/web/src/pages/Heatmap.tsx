@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDataMode } from '../App';
 
 const API = 'http://localhost:3001/api';
 
@@ -89,6 +90,7 @@ function idwInterpolate(
 }
 
 export default function Heatmap() {
+  const { mode } = useDataMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const navigate = useNavigate();
 
@@ -115,19 +117,31 @@ export default function Heatmap() {
   const SCALE = 65;
   const PADDING = 40;
 
-  // Load floors, readings, anchors
+  // Load floors, readings, anchors based on operating mode
   useEffect(() => {
-    Promise.all([
-      fetch(`${API}/floors`).then(r => r.json()),
-      fetch(`${API}/readings`).then(r => r.json()),
-      fetch(`${API}/anchors`).then(r => r.json()),
-    ]).then(([f, r, a]) => {
-      setFloors(f);
-      setReadings(r);
-      setAnchors(a);
-      if (f.length > 0) setSelectedFloorId(f[0].id);
-    }).catch(() => {});
-  }, []);
+    if (mode === 'demo') {
+      fetch('http://localhost:3001/api/demo-data')
+        .then(res => res.json())
+        .then(data => {
+          setFloors(data.floors);
+          setReadings(data.readings);
+          setAnchors(data.anchors);
+          if (data.floors.length > 0) setSelectedFloorId(data.floors[0].id);
+        })
+        .catch(() => {});
+    } else {
+      Promise.all([
+        fetch(`${API}/floors`).then(r => r.json()),
+        fetch(`${API}/readings`).then(r => r.json()),
+        fetch(`${API}/anchors`).then(r => r.json()),
+      ]).then(([f, r, a]) => {
+        setFloors(f);
+        setReadings(r);
+        setAnchors(a);
+        if (f.length > 0) setSelectedFloorId(f[0].id);
+      }).catch(() => {});
+    }
+  }, [mode]);
 
   // Load persisted floorplan image & walls for selected floor
   useEffect(() => {
@@ -563,9 +577,24 @@ export default function Heatmap() {
 
   return (
     <div>
-      <div className="page-header">
-        <h2>2D Signal Field</h2>
-        <p>Dynamic wave propagation and signal intensity mapping. Double-click anywhere to add a Scan Point or Anchor.</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        <div>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+            2D Signal Field
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: mode === 'demo' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+              color: mode === 'demo' ? '#eab308' : '#38bdf8',
+              border: `1px solid ${mode === 'demo' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(56, 189, 248, 0.2)'}`
+            }}>
+              {mode === 'demo' ? '🔬 Demo Sandbox' : '🏠 Real Home'}
+            </span>
+          </h2>
+          <p>Dynamic wave propagation and signal intensity mapping. Double-click anywhere to add a Scan Point or Anchor.</p>
+        </div>
       </div>
 
       {/* Control bar */}

@@ -91,48 +91,38 @@ export function seedIfEmpty(): void {
   `);
 
   const transaction = db.transaction(() => {
-    // Insert floors
+    // Insert floors (stripping the " (Demo Data)" suffix for Real Mode)
     for (const floor of data.floors) {
-      insertFloor.run(floor.id, floor.name, floor.level, floor.width, floor.height);
+      const cleanName = floor.name.replace(' (Demo Data)', '');
+      insertFloor.run(floor.id, cleanName, floor.level, floor.width, floor.height);
     }
 
-    // Insert anchors
+    // Insert anchors (only seed manually placed anchors)
+    let seededAnchorsCount = 0;
     if (data.anchors) {
       for (const anchor of data.anchors) {
-        insertAnchor.run(
-          anchor.id,
-          anchor.floor_id,
-          anchor.device_name,
-          anchor.room_name,
-          anchor.x,
-          anchor.y,
-          anchor.z,
-          anchor.device_type,
-          anchor.notes || null
-        );
+        if (anchor.id.startsWith('anchor-real-')) {
+          insertAnchor.run(
+            anchor.id,
+            anchor.floor_id,
+            anchor.device_name,
+            anchor.room_name,
+            anchor.x,
+            anchor.y,
+            anchor.z,
+            anchor.device_type,
+            anchor.notes || null
+          );
+          seededAnchorsCount++;
+        }
       }
     }
 
-    // Insert measurements
-    for (const m of data.measurements) {
-      const pointId = uuidv4();
-      insertPoint.run(pointId, m.floor_id, null, m.x, m.y, m.z, m.label);
-      insertReading.run(
-        uuidv4(),
-        pointId,
-        m.anchor_id || null,
-        m.ssid,
-        m.rssi,
-        m.frequency_mhz,
-        m.channel,
-        m.device_name,
-        m.notes
-      );
-    }
+    // Skip measurements seeding to keep the active user database clean
+    console.log(`🌱 Seeded database floors and ${seededAnchorsCount} real anchors. Demo measurements skipped.`);
   });
 
   transaction();
-  console.log(`🌱 Seeded database with ${data.floors.length} floors, ${(data.anchors || []).length} anchors, ${data.measurements.length} readings`);
 }
 
 // Allow running directly: npx tsx src/seed.ts

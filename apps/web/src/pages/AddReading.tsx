@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useDataMode } from '../App';
 
 const API = 'http://localhost:3001/api';
 
@@ -96,6 +97,7 @@ function getConfidenceBadge(confidence: 'High' | 'Medium' | 'Low') {
 }
 
 export default function AddReading() {
+  const { mode } = useDataMode();
   const [floors, setFloors] = useState<Floor[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [anchors, setAnchors] = useState<Anchor[]>([]);
@@ -124,20 +126,36 @@ export default function AddReading() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch floors, readings, anchors
+  // Fetch floors, readings, anchors based on operating mode
   useEffect(() => {
-    fetch(`${API}/floors`).then(r => r.json()).then(data => {
-      setFloors(data);
-      if (qFloorId) {
-        setFloorId(qFloorId);
-      } else if (data.length > 0) {
-        setFloorId(data[0].id);
-      }
-    }).catch(() => {});
-    
-    fetch(`${API}/readings`).then(r => r.json()).then(setReadings).catch(() => {});
-    fetch(`${API}/anchors`).then(r => r.json()).then(setAnchors).catch(() => {});
-  }, [qFloorId]);
+    if (mode === 'demo') {
+      fetch('http://localhost:3001/api/demo-data')
+        .then(res => res.json())
+        .then(data => {
+          setFloors(data.floors);
+          setReadings(data.readings);
+          setAnchors(data.anchors);
+          if (qFloorId) {
+            setFloorId(qFloorId);
+          } else if (data.floors.length > 0) {
+            setFloorId(data.floors[0].id);
+          }
+        })
+        .catch(() => {});
+    } else {
+      fetch(`${API}/floors`).then(r => r.json()).then(data => {
+        setFloors(data);
+        if (qFloorId) {
+          setFloorId(qFloorId);
+        } else if (data.length > 0) {
+          setFloorId(data[0].id);
+        }
+      }).catch(() => {});
+      
+      fetch(`${API}/readings`).then(r => r.json()).then(setReadings).catch(() => {});
+      fetch(`${API}/anchors`).then(r => r.json()).then(setAnchors).catch(() => {});
+    }
+  }, [qFloorId, mode]);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -224,18 +242,44 @@ export default function AddReading() {
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Add Reading</h2>
-        <p>Record a live Wi-Fi signal strength measurement</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+        <div>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+            Add Reading
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: mode === 'demo' ? 'rgba(234, 179, 8, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+              color: mode === 'demo' ? '#eab308' : '#38bdf8',
+              border: `1px solid ${mode === 'demo' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(56, 189, 248, 0.2)'}`
+            }}>
+              {mode === 'demo' ? '🔬 Demo Sandbox' : '🏠 Real Home'}
+            </span>
+          </h2>
+          <p>Record a live Wi-Fi signal strength measurement</p>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 'var(--space-xl)', alignItems: 'start' }}>
-        {/* Form */}
+        {/* Form / Locked Notice in Demo Mode */}
         <div className="card">
-          <form onSubmit={handleSubmit}>
-            <h3 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.1rem', fontWeight: 600 }}>
-              📡 New Measurement
-            </h3>
+          {mode === 'demo' ? (
+            <div style={{ padding: 'var(--space-lg) 0', textAlign: 'center' }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-md)' }}>🔒</span>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                Recording Locked
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                You are currently exploring the <strong>Demo Sandbox</strong>. Live manual reading entry is disabled. Toggle to <strong>Real Mode</strong> in the sidebar to record real signals for your home setup.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <h3 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.1rem', fontWeight: 600 }}>
+                📡 New Measurement
+              </h3>
 
             {/* Floor */}
             <div className="form-group">
@@ -433,7 +477,8 @@ export default function AddReading() {
             >
               {submitting ? 'Saving...' : '💾 Save Reading'}
             </button>
-          </form>
+            </form>
+          )}
         </div>
 
         {/* Readings Table */}

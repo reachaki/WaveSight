@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useDataMode } from '../App';
 
 const API = 'http://localhost:3001/api';
 
@@ -24,6 +25,7 @@ interface Anchor {
 }
 
 export default function Anchors() {
+  const { mode } = useDataMode();
   const [floors, setFloors] = useState<Floor[]>([]);
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -45,17 +47,32 @@ export default function Anchors() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/floors`).then(r => r.json()).then(data => {
-      setFloors(data);
-      if (qFloorId) {
-        setFloorId(qFloorId);
-      } else if (data.length > 0) {
-        setFloorId(data[0].id);
-      }
-    }).catch(() => {});
-    
-    fetch(`${API}/anchors`).then(r => r.json()).then(setAnchors).catch(() => {});
-  }, [qFloorId]);
+    if (mode === 'demo') {
+      fetch('http://localhost:3001/api/demo-data')
+        .then(res => res.json())
+        .then(data => {
+          setFloors(data.floors);
+          setAnchors(data.anchors);
+          if (qFloorId) {
+            setFloorId(qFloorId);
+          } else if (data.floors.length > 0) {
+            setFloorId(data.floors[0].id);
+          }
+        })
+        .catch(() => {});
+    } else {
+      fetch(`${API}/floors`).then(r => r.json()).then(data => {
+        setFloors(data);
+        if (qFloorId) {
+          setFloorId(qFloorId);
+        } else if (data.length > 0) {
+          setFloorId(data[0].id);
+        }
+      }).catch(() => {});
+      
+      fetch(`${API}/anchors`).then(r => r.json()).then(setAnchors).catch(() => {});
+    }
+  }, [qFloorId, mode]);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -160,12 +177,23 @@ export default function Anchors() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 'var(--space-xl)', alignItems: 'start' }}>
-        {/* Registration Form */}
+        {/* Registration Form / Sandbox locked notice */}
         <div className="card">
-          <form onSubmit={handleSubmit}>
-            <h3 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              ⚓ Register Location Anchor
-            </h3>
+          {mode === 'demo' ? (
+            <div style={{ padding: 'var(--space-md) 0', textAlign: 'center' }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-md)' }}>🔒</span>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                Registration Locked
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                You are currently exploring the <strong>Demo Sandbox</strong>. Real-world anchor registration is disabled. Toggle to <strong>Real Mode</strong> in the sidebar to register your home devices.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <h3 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                ⚓ Register Location Anchor
+              </h3>
 
             {/* Floor selection */}
             <div className="form-group">
@@ -296,7 +324,8 @@ export default function Anchors() {
               {submitting ? 'Registering...' : '⚓ Register Anchor'}
             </button>
           </form>
-        </div>
+        )}
+      </div>
 
         {/* Anchors Table */}
         <div>
@@ -319,7 +348,7 @@ export default function Anchors() {
                     <th>Type</th>
                     <th>Coordinates</th>
                     <th>Notes</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
+                    {mode === 'real' && <th style={{ textAlign: 'right' }}>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -360,23 +389,25 @@ export default function Anchors() {
                         <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
                           ({a.x.toFixed(2)}m, {a.y.toFixed(2)}m{a.z !== null && a.z !== undefined ? `, ${a.z.toFixed(2)}m` : ''})
                         </td>
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.notes || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleDelete(a.id)}
-                          className="btn btn-secondary"
-                          style={{
-                            padding: '4px 8px',
-                            fontSize: '0.75rem',
-                            color: '#ef4444',
-                            borderColor: 'rgba(239, 68, 68, 0.2)'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  )})}
+                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.notes || '—'}</td>
+                        {mode === 'real' && (
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleDelete(a.id)}
+                              className="btn btn-secondary"
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                color: '#ef4444',
+                                borderColor: 'rgba(239, 68, 68, 0.2)'
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    )})}
                 </tbody>
               </table>
             </div>

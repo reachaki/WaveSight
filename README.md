@@ -44,6 +44,23 @@ High-resolution physical layer telemetry:
 
 ---
 
+## 🏠 Data Modes (Real vs Demo)
+
+WaveSight maintains a strict separation between your real-world measurements and mock simulation data:
+
+- **🏠 Real Mode (Default)**:
+  - Interacts directly with your local SQLite database (`wavesight.db`).
+  - Contains **only** your manually registered anchors (e.g. Router, Sofa Phone, iPad) and any live RSSI scan points you record.
+  - The database contains **zero mock or demo measurements** by default, starting empty so your layout is completely clean.
+- **🔬 Demo Mode**:
+  - Served via a separate backend sandbox endpoint (`/api/demo-data`) reading from `sample-measurements.json`.
+  - Shows 4 pre-seeded mock anchors and 20 sample scan readings with pulsing waves to let you explore the dashboard and visualizer interface immediately.
+  - Registration forms and edit controls are locked in Demo Mode to protect the integrity of the sample sandbox.
+
+You can switch between modes seamlessly using the **Operating Mode** toggle in the sidebar. The selected mode is persisted in your browser's local storage.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
